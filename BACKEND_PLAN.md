@@ -2,7 +2,7 @@
 
 Derived from `DSR2P-Product-Backlog.docx`. Scope: backend (`-BE#`) tasks only. Frontend tasks are out of scope here but noted where a backend task is a hard dependency for one.
 
-## Tech decisions to confirm before Phase 0
+## Tech decisions to confirm before Phase 0 - done
 - Stack: Node.js/Express + PostgreSQL 14+ — **implemented**
 - Auth: JWT — **implemented**
 - Migration tool: Prisma — **implemented**
@@ -13,11 +13,11 @@ central error handler, `requireAuth`/`requireAdmin` middleware, seed script. See
 for local setup.
 
 ## Phase 0 — Foundations (Epic 1 + Epic 2, blocking everything else)
-1. **[DSR2P-1] Schema & migrations**
+1. **[DSR2P-1] Schema & migrations** Done
    - Version-control `schema.sql`, wire into migration tool (1-BE1)
    - Migrations: `reviews.photo_url`/`review_images` (1-BE2), `review_likes` with `UNIQUE(review_id,user_id)` (1-BE3), `rejection_reason` on reviews/comments (1-BE4)
    - Seed script: sample restaurants/menu items + 1 Admin/Customer (1-BE5)
-2. **[DSR2P-2] API scaffold**
+2. **[DSR2P-2] API scaffold** done
    - Project init, data-access layer stubs for all tables (2-BE1)
    - Request logging + centralized error middleware, consistent JSON error shape (2-BE2)
    - Auth middleware skeleton: anonymous/Customer/Admin (2-BE3)
