@@ -79,8 +79,10 @@ export const openApiSpec: OpenAPIV3.Document = {
       },
       UpdateProfileInput: {
         type: "object",
+        description: "At least one of name/language must be given",
+        minProperties: 1,
         properties: {
-          name: { type: "string", minLength: 1 },
+          name: { type: "string", minLength: 1, maxLength: 100, example: "Nimal Perera" },
           language: { $ref: "#/components/schemas/Language" },
         },
       },
@@ -234,7 +236,12 @@ export const openApiSpec: OpenAPIV3.Document = {
               "application/json": { schema: { $ref: "#/components/schemas/PublicUser" } },
             },
           },
-          "400": errorResponse("Validation failed"),
+          "400": {
+            description: "Validation failed (blank/over-long name, unsupported language, or neither field given)",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } },
+            },
+          },
           "401": errorResponse("Not logged in"),
           "404": errorResponse("User no longer exists"),
         },
