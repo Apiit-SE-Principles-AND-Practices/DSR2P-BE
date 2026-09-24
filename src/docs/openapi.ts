@@ -100,6 +100,17 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
         },
       },
+      RestaurantPage: {
+        type: "object",
+        required: ["data", "page", "pageSize", "total", "totalPages"],
+        properties: {
+          data: { type: "array", items: { $ref: "#/components/schemas/Restaurant" } },
+          page: { type: "integer", minimum: 1, example: 1 },
+          pageSize: { type: "integer", minimum: 1, maximum: 100, example: 20 },
+          total: { type: "integer", description: "Total matching restaurants, across all pages" },
+          totalPages: { type: "integer" },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -289,17 +300,26 @@ export const openApiSpec: OpenAPIV3.Document = {
             in: "query",
             schema: { $ref: "#/components/schemas/City" },
           },
+          {
+            name: "page",
+            in: "query",
+            description: "1-based page number",
+            schema: { type: "integer", minimum: 1, default: 1 },
+          },
+          {
+            name: "pageSize",
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+          },
         ],
         responses: {
           "200": {
-            description: "Restaurant list",
+            description: "A page of restaurants",
             content: {
-              "application/json": {
-                schema: { type: "array", items: { $ref: "#/components/schemas/Restaurant" } },
-              },
+              "application/json": { schema: { $ref: "#/components/schemas/RestaurantPage" } },
             },
           },
-          "400": errorResponse("Unsupported city"),
+          "400": errorResponse("Unsupported city, or an invalid page/pageSize"),
         },
       },
     },

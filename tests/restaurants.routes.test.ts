@@ -2,7 +2,14 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
-  restaurant: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+  restaurant: {
+    findMany: vi.fn(),
+    count: vi.fn(),
+    findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -30,20 +37,32 @@ const notFoundError = new Prisma.PrismaClientKnownRequestError("Record not found
 describe("restaurants", () => {
   const app = createApp();
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.restaurant.count.mockResolvedValue(1);
+  });
 
   describe("GET /restaurants", () => {
-    it("lists restaurants with no filter", async () => {
+    it("lists restaurants with no filter, defaulting to page 1 of 20", async () => {
       prismaMock.restaurant.findMany.mockResolvedValue([restaurant]);
 
       const res = await request(app).get("/restaurants");
 
       expect(res.status).toBe(200);
-      expect(res.body).toHaveLength(1);
+      expect(res.body).toEqual({
+        data: [{ ...restaurant, createdAt: restaurant.createdAt.toISOString() }],
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1,
+      });
       expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith({
         where: undefined,
         orderBy: { createdAt: "desc" },
+        skip: 0,
+        take: 20,
       });
+      expect(prismaMock.restaurant.count).toHaveBeenCalledWith({ where: undefined });
     });
 
     it("filters by city", async () => {
@@ -51,14 +70,47 @@ describe("restaurants", () => {
 
       await request(app).get("/restaurants?city=Kandy");
 
-      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith({
-        where: { city: "Kandy" },
-        orderBy: { createdAt: "desc" },
-      });
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { city: "Kandy" } })
+      );
+      expect(prismaMock.restaurant.count).toHaveBeenCalledWith({ where: { city: "Kandy" } });
     });
 
     it("returns 400 for an unsupported city", async () => {
       const res = await request(app).get("/restaurants?city=London");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();
+    });
+
+    it("applies page and pageSize as skip/take", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([]);
+      prismaMock.restaurant.count.mockResolvedValue(45);
+
+      const res = await request(app).get("/restaurants?page=3&pageSize=10");
+
+      expect(res.body).toMatchObject({ page: 3, pageSize: 10, total: 45, totalPages: 5 });
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 20, take: 10 })
+      );
+    });
+
+    it("returns 400 for a page below 1, and never queries", async () => {
+      const res = await request(app).get("/restaurants?page=0");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();
+      expect(prismaMock.restaurant.count).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for a non-numeric page", async () => {
+      const res = await request(app).get("/restaurants?page=abc");
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 400 for a pageSize over the max", async () => {
+      const res = await request(app).get("/restaurants?pageSize=101");
 
       expect(res.status).toBe(400);
       expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();

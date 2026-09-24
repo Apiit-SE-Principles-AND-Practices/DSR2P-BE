@@ -50,8 +50,20 @@ export const updateRestaurantSchema = z
     message: "Provide at least one field to update",
   });
 
-// GET /restaurants?city=
-export const listRestaurantsQuerySchema = z.object({ city: cityEnum.optional() });
+export const DEFAULT_PAGE_SIZE = 20;
+export const PAGE_SIZE_MAX = 100;
+
+// GET /restaurants?city=&page=&pageSize=
+export const listRestaurantsQuerySchema = z.object({
+  city: cityEnum.optional(),
+  page: z.coerce.number().int("page must be a whole number").min(1, "page must be at least 1").default(1),
+  pageSize: z.coerce
+    .number()
+    .int("pageSize must be a whole number")
+    .min(1, "pageSize must be at least 1")
+    .max(PAGE_SIZE_MAX, `pageSize must be at most ${PAGE_SIZE_MAX}`)
+    .default(DEFAULT_PAGE_SIZE),
+});
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
 export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;

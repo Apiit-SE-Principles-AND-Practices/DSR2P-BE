@@ -13,16 +13,22 @@ import {
 // Public reads, mounted at /restaurants.
 export const restaurantsRouter = Router();
 
-// [DSR2P]-9 — GET /restaurants?city= — newest first, optionally scoped to a city
+// [DSR2P]-9 — GET /restaurants?city=&page=&pageSize= — newest first, optionally scoped to a city
 restaurantsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const { city } = listRestaurantsQuerySchema.parse(req.query);
-    const restaurants = await prisma.restaurant.findMany({
-      where: city ? { city } : undefined,
-      orderBy: { createdAt: "desc" },
-    });
-    res.status(200).json(restaurants);
+    const { city, page, pageSize } = listRestaurantsQuerySchema.parse(req.query);
+    const where = city ? { city } : undefined;
+    const [total, data] = await Promise.all([
+      prisma.restaurant.count({ where }),
+      prisma.restaurant.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   })
 );
 
