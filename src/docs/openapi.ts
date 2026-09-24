@@ -20,6 +20,8 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Health" },
     { name: "Auth", description: "Registration and login" },
     { name: "Users", description: "The logged-in user's profile" },
+    { name: "Restaurants", description: "Public restaurant browsing" },
+    { name: "Admin", description: "Admin-only restaurant management" },
   ],
   components: {
     securitySchemes: {
@@ -82,6 +84,43 @@ export const openApiSpec: OpenAPIV3.Document = {
         properties: {
           name: { type: "string", minLength: 1 },
           language: { $ref: "#/components/schemas/Language" },
+        },
+      },
+      City: { type: "string", enum: ["Colombo", "Kandy", "Galle"] },
+      Restaurant: {
+        type: "object",
+        required: ["id", "name", "city", "category", "address", "createdAt"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          city: { $ref: "#/components/schemas/City" },
+          category: { type: "string" },
+          address: { type: "string" },
+          imageUrl: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
+      CreateRestaurantInput: {
+        type: "object",
+        required: ["name", "city", "category", "address"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 150, example: "Ceylon Spice House" },
+          city: { $ref: "#/components/schemas/City" },
+          category: { type: "string", minLength: 1, maxLength: 50, example: "Sri Lankan" },
+          address: { type: "string", minLength: 1, maxLength: 255, example: "12 Galle Road, Colombo 03" },
+          imageUrl: { type: "string", format: "uri", maxLength: 255 },
+        },
+      },
+      UpdateRestaurantInput: {
+        type: "object",
+        description: "At least one field must be given",
+        minProperties: 1,
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 150 },
+          city: { $ref: "#/components/schemas/City" },
+          category: { type: "string", minLength: 1, maxLength: 50 },
+          address: { type: "string", minLength: 1, maxLength: 255 },
+          imageUrl: { type: "string", format: "uri", maxLength: 255 },
         },
       },
       ValidationError: {
@@ -237,6 +276,110 @@ export const openApiSpec: OpenAPIV3.Document = {
           "400": errorResponse("Validation failed"),
           "401": errorResponse("Not logged in"),
           "404": errorResponse("User no longer exists"),
+        },
+      },
+    },
+    "/restaurants": {
+      get: {
+        tags: ["Restaurants"],
+        summary: "List restaurants, newest first",
+        parameters: [
+          {
+            name: "city",
+            in: "query",
+            schema: { $ref: "#/components/schemas/City" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Restaurant list",
+            content: {
+              "application/json": {
+                schema: { type: "array", items: { $ref: "#/components/schemas/Restaurant" } },
+              },
+            },
+          },
+          "400": errorResponse("Unsupported city"),
+        },
+      },
+    },
+    "/restaurants/{id}": {
+      get: {
+        tags: ["Restaurants"],
+        summary: "Get one restaurant",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": {
+            description: "Restaurant",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Restaurant" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/admin/restaurants": {
+      post: {
+        tags: ["Admin"],
+        summary: "Create a restaurant",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/CreateRestaurantInput" } },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Restaurant" } } },
+          },
+          "400": {
+            description: "Validation failed",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+        },
+      },
+    },
+    "/admin/restaurants/{id}": {
+      put: {
+        tags: ["Admin"],
+        summary: "Update a restaurant",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: { $ref: "#/components/schemas/UpdateRestaurantInput" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Restaurant" } } },
+          },
+          "400": {
+            description: "Validation failed",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Restaurant not found"),
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "Delete a restaurant (cascades to its menu items and reviews)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "204": { description: "Deleted" },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Restaurant not found"),
         },
       },
     },
