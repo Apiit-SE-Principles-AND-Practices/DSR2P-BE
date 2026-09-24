@@ -71,8 +71,8 @@ describe("updateRestaurantSchema", () => {
 });
 
 describe("listRestaurantsQuerySchema", () => {
-  it("allows an empty query", () => {
-    expect(listRestaurantsQuerySchema.parse({})).toEqual({});
+  it("defaults page to 1 and pageSize to 20 for an empty query", () => {
+    expect(listRestaurantsQuerySchema.parse({})).toEqual({ page: 1, pageSize: 20 });
   });
 
   it("accepts a supported city", () => {
@@ -82,6 +82,35 @@ describe("listRestaurantsQuerySchema", () => {
   it("rejects an unsupported city", () => {
     const result = listRestaurantsQuerySchema.safeParse({ city: "London" });
     expect(result.success).toBe(false);
+  });
+
+  it("coerces page and pageSize from query strings", () => {
+    const parsed = listRestaurantsQuerySchema.parse({ page: "3", pageSize: "50" });
+    expect(parsed).toMatchObject({ page: 3, pageSize: 50 });
+  });
+
+  it.each([0, -1])("rejects a page of %i", (page) => {
+    expect(listRestaurantsQuerySchema.safeParse({ page }).success).toBe(false);
+  });
+
+  it("rejects a non-integer page", () => {
+    expect(listRestaurantsQuerySchema.safeParse({ page: 1.5 }).success).toBe(false);
+  });
+
+  it("rejects a non-numeric page", () => {
+    expect(listRestaurantsQuerySchema.safeParse({ page: "abc" }).success).toBe(false);
+  });
+
+  it("accepts pageSize at the max of 100", () => {
+    expect(listRestaurantsQuerySchema.parse({ pageSize: 100 }).pageSize).toBe(100);
+  });
+
+  it("rejects a pageSize over 100", () => {
+    expect(listRestaurantsQuerySchema.safeParse({ pageSize: 101 }).success).toBe(false);
+  });
+
+  it("rejects a pageSize of 0", () => {
+    expect(listRestaurantsQuerySchema.safeParse({ pageSize: 0 }).success).toBe(false);
   });
 });
 
