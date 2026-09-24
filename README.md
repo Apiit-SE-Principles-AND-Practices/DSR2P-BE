@@ -28,6 +28,7 @@ Backend API for the restaurant review portal (Ruchi / Dine Score) — COMP70066 
    npm run dev
    ```
 6. Confirm it's up: `GET http://localhost:3000/health` → `{ "status": "ok" }`
+7. API docs (Swagger UI): http://localhost:3000/docs — raw OpenAPI spec at `/docs/openapi.json` (source: `src/docs/openapi.ts`)
 
 ## Scripts
 - `npm run dev` — start with hot reload
