@@ -1,0 +1,165 @@
+// Prisma schema for DSR2P-BE (Ruchi / Dine Score restaurant review portal)
+// Introspected from the live database (`prisma db pull`). The database is the
+// source of truth — models/fields are renamed to PascalCase/camelCase via
+// @@map/@map, but the underlying tables and columns are unchanged.
+//
+// NOTE: the database also enforces CHECK constraints that Prisma cannot model:
+//   menu_items_price_lkr_check, reviews_{food_quality,service,misc}_rating_check
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum City {
+  Colombo
+  Kandy
+  Galle
+
+  @@map("city_enum")
+}
+
+enum Language {
+  en
+  si
+  ta
+
+  @@map("language_enum")
+}
+
+enum ModerationStatus {
+  Pending
+  Approved
+  Rejected
+
+  @@map("moderation_status_enum")
+}
+
+enum SpiceLevel {
+  None
+  Mild
+  Medium
+  Hot
+  Extra_Hot @map("Extra Hot")
+
+  @@map("spice_level_enum")
+}
+
+model Role {
+  id          Int    @id @default(autoincrement()) @map("role_id")
+  name        String @unique @db.VarChar(50)
+  description String @db.VarChar(255)
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @map("user_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(150)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  roleId       Int      @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [id])
+  language     Language @default(en)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  reviews  Review[]
+  comments Comment[]
+
+  @@index([roleId], map: "idx_users_role")
+  @@map("users")
+}
+
+model Restaurant {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @map("restaurant_id") @db.Uuid
+  name      String   @db.VarChar(150)
+  city      City
+  category  String   @db.VarChar(50)
+  address   String   @db.VarChar(255)
+  imageUrl  String?  @map("image_url") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  menuItems MenuItem[]
+  reviews   Review[]
+
+  @@index([category], map: "idx_restaurants_category")
+  @@index([city], map: "idx_restaurants_city")
+  @@map("restaurants")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model MenuItem {
+  id           Int        @id @default(autoincrement()) @map("item_id")
+  restaurantId String     @map("restaurant_id") @db.Uuid
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String     @db.VarChar(150)
+  priceLkr     Decimal    @map("price_lkr") @db.Decimal(10, 2)
+  isVegetarian Boolean    @default(false) @map("is_vegetarian")
+  isVegan      Boolean    @default(false) @map("is_vegan")
+  isHalal      Boolean    @default(false) @map("is_halal")
+  spiceLevel   SpiceLevel @default(None) @map("spice_level")
+  imageUrl     String?    @map("image_url") @db.VarChar(255)
+
+  reviews Review[]
+
+  @@index([isVegetarian, isVegan, isHalal], map: "idx_menuitems_diet")
+  @@index([priceLkr], map: "idx_menuitems_price")
+  @@index([restaurantId], map: "idx_menuitems_restaurant")
+  @@map("menu_items")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Review {
+  id                Int              @id @default(autoincrement()) @map("review_id")
+  userId            String           @map("user_id") @db.Uuid
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId      String           @map("restaurant_id") @db.Uuid
+  restaurant        Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  itemId            Int?             @map("item_id")
+  menuItem          MenuItem?        @relation(fields: [itemId], references: [id])
+  foodQualityRating Int              @map("food_quality_rating") @db.SmallInt
+  serviceRating     Int              @map("service_rating") @db.SmallInt
+  miscRating        Int              @map("misc_rating") @db.SmallInt
+  reviewText        String           @map("review_text")
+  language          Language         @default(en)
+  status            ModerationStatus @default(Pending)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+
+  comments Comment[]
+  response Response?
+
+  @@index([itemId, status], map: "idx_reviews_item_status")
+  @@index([restaurantId, status], map: "idx_reviews_restaurant_status")
+  @@index([userId], map: "idx_reviews_user")
+  @@map("reviews")
+}
+
+model Comment {
+  id          Int              @id @default(autoincrement()) @map("comment_id")
+  reviewId    Int              @map("review_id")
+  review      Review           @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId      String           @map("user_id") @db.Uuid
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentText String           @map("comment_text")
+  status      ModerationStatus @default(Pending)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([reviewId, status], map: "idx_comments_review_status")
+  @@map("comments")
+}
+
+model Response {
+  id           Int      @id @default(autoincrement()) @map("response_id")
+  reviewId     Int      @unique @map("review_id")
+  review       Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  responseText String   @map("response_text")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("responses")
+}
