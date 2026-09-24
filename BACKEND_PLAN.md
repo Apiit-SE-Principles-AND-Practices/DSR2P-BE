@@ -23,12 +23,14 @@ for local setup.
    - Auth middleware skeleton: anonymous/Customer/Admin (2-BE3)
    - README with local setup (2-BE4)
    - `GET /health`
-3. **[DSR2P-4] Registration** — `POST /auth/register` (4-BE1), 409 duplicate / 400 field errors (4-BE2)
-4. **[DSR2P-5] Login** — `POST /auth/login` (5-BE1)
-5. **[DSR2P-6] Profile update** — `PATCH /users/me` (6-BE1)
-6. **[DSR2P-7] Auth/Admin gating middleware** — `requireAuth()` (7-BE1), `requireAdmin()` (7-BE2)
+3. **[DSR2P-4] Registration** — `POST /auth/register` (4-BE1), 409 duplicate / 400 field errors (4-BE2) done
+4. **[DSR2P-5] Login** — `POST /auth/login` (5-BE1) done 
+5. **[DSR2P-6] Profile update** — `PATCH /users/me` (6-BE1) done
+6. **[DSR2P-7] Auth/Admin gating middleware** — `requireAuth()` (7-BE1), `requireAdmin()` (7-BE2) done
 
-## Phase 1 — Browse & Search (Epic 3) + Derived Calculations (Epic 6)
+## Phase 1 CRUD Restuarant
+
+## Phase 1.1 — Browse & Search (Epic 3) + Derived Calculations (Epic 6)
 7. **[DSR2P-23/24/25]** `calculateAverageRating()` (restaurant + item scoped), `calculatePriceBand()` — pure query-time, no stored columns
 8. **[DSR2P-8]** `GET /categories`
 9. **[DSR2P-9]** `GET /restaurants?city=` (requires city param, uses `idx_restaurants_city`)
