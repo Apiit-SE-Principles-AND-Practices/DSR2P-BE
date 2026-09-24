@@ -2,6 +2,8 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import swaggerUi from "swagger-ui-express";
+import { openApiSpec } from "./docs/openapi";
 import { attachUser } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/auth.routes";
@@ -17,6 +19,8 @@ export function createApp() {
   app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(attachUser);
 
+  app.get("/docs/openapi.json", (_req, res) => res.json(openApiSpec));
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
   app.use("/health", healthRouter);
   app.use("/auth", authRouter);
   app.use("/users", usersRouter);

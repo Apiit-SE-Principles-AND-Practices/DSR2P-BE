@@ -7,5 +7,6 @@ const app = createApp();
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
+  console.log(`OpenAPI docs available at http://localhost:${PORT}/docs`);
   console.log(`DSR2P-BE listening on port ${PORT}`);
 });
