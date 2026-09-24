@@ -8,6 +8,7 @@ import { attachUser } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/auth.routes";
 import { healthRouter } from "./modules/health/health.routes";
+import { adminRestaurantsRouter, restaurantsRouter } from "./modules/restaurants/restaurants.routes";
 import { usersRouter } from "./modules/users/users.routes";
 
 export function createApp() {
@@ -24,6 +25,8 @@ export function createApp() {
   app.use("/health", healthRouter);
   app.use("/auth", authRouter);
   app.use("/users", usersRouter);
+  app.use("/restaurants", restaurantsRouter);
+  app.use("/admin/restaurants", adminRestaurantsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
