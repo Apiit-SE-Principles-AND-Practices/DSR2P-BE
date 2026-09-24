@@ -51,12 +51,19 @@ export const openApiSpec: OpenAPIV3.Document = {
         type: "object",
         required: ["name", "email", "password"],
         properties: {
-          name: { type: "string", minLength: 1, example: "Nimal Perera" },
-          email: { type: "string", format: "email", example: "nimal@example.com" },
+          name: { type: "string", minLength: 1, maxLength: 100, example: "Nimal Perera" },
+          email: {
+            type: "string",
+            format: "email",
+            maxLength: 150,
+            description: "Stored lowercase; must not already be registered (in any case)",
+            example: "nimal@example.com",
+          },
           password: {
             type: "string",
             minLength: 8,
-            description: "At least 8 characters, with at least one letter and one number",
+            maxLength: 72,
+            description: "8–72 characters, with at least one letter and one number",
             example: "Password123",
           },
           language: { $ref: "#/components/schemas/Language" },
@@ -75,6 +82,31 @@ export const openApiSpec: OpenAPIV3.Document = {
         properties: {
           name: { type: "string", minLength: 1 },
           language: { $ref: "#/components/schemas/Language" },
+        },
+      },
+      ValidationError: {
+        type: "object",
+        required: ["error"],
+        properties: {
+          error: {
+            type: "object",
+            required: ["code", "message", "details"],
+            properties: {
+              code: { type: "string", enum: ["VALIDATION_ERROR"] },
+              message: { type: "string" },
+              details: {
+                type: "object",
+                properties: {
+                  formErrors: { type: "array", items: { type: "string" } },
+                  fieldErrors: {
+                    type: "object",
+                    description: "Messages per field; the first one is the most relevant",
+                    additionalProperties: { type: "array", items: { type: "string" } },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       Error: {
@@ -137,8 +169,28 @@ export const openApiSpec: OpenAPIV3.Document = {
               "application/json": { schema: { $ref: "#/components/schemas/AuthResult" } },
             },
           },
-          "400": errorResponse("Validation failed"),
-          "409": errorResponse("Email already registered"),
+          "400": {
+            description: "Validation failed — nothing was saved",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ValidationError" },
+                example: {
+                  error: {
+                    code: "VALIDATION_ERROR",
+                    message: "Request failed validation",
+                    details: {
+                      formErrors: [],
+                      fieldErrors: {
+                        email: ["Invalid email address"],
+                        password: ["Password must contain a number"],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "409": errorResponse("Email already registered — nothing was saved"),
         },
       },
     },
