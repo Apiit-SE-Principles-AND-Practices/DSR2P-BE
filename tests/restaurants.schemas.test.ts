@@ -3,6 +3,7 @@ import {
   createRestaurantSchema,
   idParamSchema,
   listRestaurantsQuerySchema,
+  searchRestaurantsQuerySchema,
   updateRestaurantSchema,
 } from "../src/modules/restaurants/restaurants.schemas";
 
@@ -123,5 +124,50 @@ describe("idParamSchema", () => {
   it("rejects a non-uuid id", () => {
     const result = idParamSchema.safeParse({ id: "not-a-uuid" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("searchRestaurantsQuerySchema", () => {
+  it("accepts an empty query, defaulting page/pageSize", () => {
+    expect(searchRestaurantsQuerySchema.parse({})).toEqual({ page: 1, pageSize: 20 });
+  });
+
+  it("accepts all filters together", () => {
+    const query = {
+      city: "Kandy",
+      category: "Sri Lankan",
+      diet: "Vegan",
+      spice: "Hot",
+      price: "Moderate",
+    };
+    expect(searchRestaurantsQuerySchema.parse(query)).toMatchObject(query);
+  });
+
+  it.each(["Vegetarian", "Vegan", "Halal"])("accepts diet %s", (diet) => {
+    expect(searchRestaurantsQuerySchema.safeParse({ diet }).success).toBe(true);
+  });
+
+  it("rejects an unsupported diet", () => {
+    expect(searchRestaurantsQuerySchema.safeParse({ diet: "Keto" }).success).toBe(false);
+  });
+
+  it.each(["None", "Mild", "Medium", "Hot", "Extra_Hot"])("accepts spice %s", (spice) => {
+    expect(searchRestaurantsQuerySchema.safeParse({ spice }).success).toBe(true);
+  });
+
+  it("rejects an unsupported spice level", () => {
+    expect(searchRestaurantsQuerySchema.safeParse({ spice: "Nuclear" }).success).toBe(false);
+  });
+
+  it.each(["Budget", "Moderate", "Premium"])("accepts price band %s", (price) => {
+    expect(searchRestaurantsQuerySchema.safeParse({ price }).success).toBe(true);
+  });
+
+  it("rejects an unsupported price band", () => {
+    expect(searchRestaurantsQuerySchema.safeParse({ price: "Luxury" }).success).toBe(false);
+  });
+
+  it("rejects an unsupported city", () => {
+    expect(searchRestaurantsQuerySchema.safeParse({ city: "London" }).success).toBe(false);
   });
 });

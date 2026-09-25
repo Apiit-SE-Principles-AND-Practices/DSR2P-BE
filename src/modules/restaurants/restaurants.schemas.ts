@@ -7,6 +7,9 @@ export const ADDRESS_MAX = 255;
 export const IMAGE_URL_MAX = 255;
 
 const cityEnum = z.enum(["Colombo", "Kandy", "Galle"]);
+const dietEnum = z.enum(["Vegetarian", "Vegan", "Halal"]);
+const spiceEnum = z.enum(["None", "Mild", "Medium", "Hot", "Extra_Hot"]);
+const priceBandEnum = z.enum(["Budget", "Moderate", "Premium"]);
 
 export const idParamSchema = z.object({
   id: z.string().uuid("Invalid restaurant id"),
@@ -65,5 +68,17 @@ export const listRestaurantsQuerySchema = z.object({
     .default(DEFAULT_PAGE_SIZE),
 });
 
+// [DSR2P]-11 — GET /restaurants/search?category=&diet=&spice=&price=&city=&page=&pageSize=
+export const searchRestaurantsQuerySchema = z.object({
+  city: cityEnum.optional(),
+  category: category.optional(),
+  diet: dietEnum.optional(),
+  spice: spiceEnum.optional(),
+  price: priceBandEnum.optional(),
+  page: listRestaurantsQuerySchema.shape.page,
+  pageSize: listRestaurantsQuerySchema.shape.pageSize,
+});
+
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
 export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;
+export type SearchRestaurantsQuery = z.infer<typeof searchRestaurantsQuerySchema>;
