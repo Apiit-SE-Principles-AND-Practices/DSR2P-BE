@@ -235,6 +235,13 @@ export const openApiSpec: OpenAPIV3.Document = {
           commentText: { type: "string", minLength: 1 },
         },
       },
+      CreateResponseInput: {
+        type: "object",
+        required: ["responseText"],
+        properties: {
+          responseText: { type: "string", minLength: 1 },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -629,6 +636,33 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "404": errorResponse("Review not found"),
+        },
+      },
+    },
+    "/reviews/{id}/response": {
+      post: {
+        tags: ["Reviews"],
+        summary: "Respond to a review (Admin-only)",
+        description: "One response per review — a second attempt 409s.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateResponseInput" } } },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ReviewResponse" } } },
+          },
+          "400": {
+            description: "Validation failed (blank responseText, or malformed review id)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Review not found"),
+          "409": errorResponse("This review already has a response"),
         },
       },
     },
