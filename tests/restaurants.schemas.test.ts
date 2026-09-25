@@ -170,4 +170,12 @@ describe("searchRestaurantsQuerySchema", () => {
   it("rejects an unsupported city", () => {
     expect(searchRestaurantsQuerySchema.safeParse({ city: "London" }).success).toBe(false);
   });
+
+  it.each(["rating", "price"])("accepts sort %s", (sort) => {
+    expect(searchRestaurantsQuerySchema.safeParse({ sort }).success).toBe(true);
+  });
+
+  it("rejects an unsupported sort", () => {
+    expect(searchRestaurantsQuerySchema.safeParse({ sort: "distance" }).success).toBe(false);
+  });
 });
