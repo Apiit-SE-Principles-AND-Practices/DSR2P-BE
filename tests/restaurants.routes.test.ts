@@ -11,7 +11,7 @@ const prismaMock = vi.hoisted(() => ({
     delete: vi.fn(),
   },
   review: { groupBy: vi.fn() },
-  menuItem: { groupBy: vi.fn() },
+  menuItem: { groupBy: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -279,6 +279,50 @@ describe("restaurants", () => {
 
     it("returns 400 for a malformed id, not 500", async () => {
       const res = await request(app).get("/restaurants/not-a-uuid");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /restaurants/:id/menu", () => {
+    const menuItem = {
+      id: 1,
+      restaurantId: id,
+      name: "Kottu",
+      priceLkr: 800,
+      isVegetarian: false,
+      isVegan: false,
+      isHalal: false,
+      spiceLevel: "Medium",
+      imageUrl: null,
+    };
+
+    it("returns the restaurant's menu", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.menuItem.findMany.mockResolvedValue([menuItem]);
+
+      const res = await request(app).get(`/restaurants/${id}/menu`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([menuItem]);
+      expect(prismaMock.menuItem.findMany).toHaveBeenCalledWith({
+        where: { restaurantId: id },
+        orderBy: { name: "asc" },
+      });
+    });
+
+    it("returns 404 when the restaurant doesn't exist", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(null);
+
+      const res = await request(app).get(`/restaurants/${id}/menu`);
+
+      expect(res.status).toBe(404);
+      expect(prismaMock.menuItem.findMany).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for a malformed id, not 500", async () => {
+      const res = await request(app).get("/restaurants/not-a-uuid/menu");
 
       expect(res.status).toBe(400);
       expect(prismaMock.restaurant.findUnique).not.toHaveBeenCalled();
