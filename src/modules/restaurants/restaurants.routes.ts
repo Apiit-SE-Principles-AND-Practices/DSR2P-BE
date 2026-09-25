@@ -3,12 +3,15 @@ import { asyncHandler } from "../../lib/asyncHandler";
 import { requireAdmin } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
+import { priceRangeForBand } from "../../lib/ratings";
 import {
   createRestaurantSchema,
   idParamSchema,
   listRestaurantsQuerySchema,
+  searchRestaurantsQuerySchema,
   updateRestaurantSchema,
 } from "./restaurants.schemas";
+import type { Prisma } from "@prisma/client";
 
 // Public reads, mounted at /restaurants.
 export const restaurantsRouter = Router();
@@ -19,6 +22,38 @@ restaurantsRouter.get(
   asyncHandler(async (req, res) => {
     const { city, page, pageSize } = listRestaurantsQuerySchema.parse(req.query);
     const where = city ? { city } : undefined;
+    const [total, data] = await Promise.all([
+      prisma.restaurant.count({ where }),
+      prisma.restaurant.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
+  })
+);
+
+// [DSR2P]-11 — GET /restaurants/search?category=&diet=&spice=&price=&city=&page=&pageSize=
+restaurantsRouter.get(
+  "/search",
+  asyncHandler(async (req, res) => {
+    const { city, category, diet, spice, price, page, pageSize } = searchRestaurantsQuerySchema.parse(
+      req.query
+    );
+    const menuItemFilter: Prisma.MenuItemWhereInput = {
+      ...(diet === "Vegetarian" && { isVegetarian: true }),
+      ...(diet === "Vegan" && { isVegan: true }),
+      ...(diet === "Halal" && { isHalal: true }),
+      ...(spice && { spiceLevel: spice }),
+      ...(price && { priceLkr: priceRangeForBand(price) }),
+    };
+    const where: Prisma.RestaurantWhereInput = {
+      ...(city && { city }),
+      ...(category && { category }),
+      ...(Object.keys(menuItemFilter).length > 0 && { menuItems: { some: menuItemFilter } }),
+    };
     const [total, data] = await Promise.all([
       prisma.restaurant.count({ where }),
       prisma.restaurant.findMany({

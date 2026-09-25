@@ -117,6 +117,60 @@ describe("restaurants", () => {
     });
   });
 
+  describe("GET /restaurants/search", () => {
+    it("searches with no filters, defaulting to page 1 of 20", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([restaurant]);
+
+      const res = await request(app).get("/restaurants/search");
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ page: 1, pageSize: 20, total: 1 });
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: {} })
+      );
+    });
+
+    it("filters by city and category", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([]);
+
+      await request(app).get("/restaurants/search?city=Kandy&category=Sri Lankan");
+
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { city: "Kandy", category: "Sri Lankan" } })
+      );
+    });
+
+    it("filters by diet, spice and price via a menu item sub-filter", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([]);
+
+      await request(app).get("/restaurants/search?diet=Vegan&spice=Hot&price=Budget");
+
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            menuItems: {
+              some: { isVegan: true, spiceLevel: "Hot", priceLkr: { lte: 1000 } },
+            },
+          },
+        })
+      );
+    });
+
+    it("returns 400 for an unsupported diet", async () => {
+      const res = await request(app).get("/restaurants/search?diet=Keto");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for an unsupported price band", async () => {
+      const res = await request(app).get("/restaurants/search?price=Luxury");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("GET /restaurants/:id", () => {
     it("returns the restaurant", async () => {
       prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);

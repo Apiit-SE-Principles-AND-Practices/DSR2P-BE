@@ -330,6 +330,44 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
     },
+    "/restaurants/search": {
+      get: {
+        tags: ["Restaurants"],
+        summary: "Search restaurants by category/diet/spice/price/city",
+        description: "diet/spice/price filter on the restaurant's menu items (matches restaurants with at least one qualifying item).",
+        parameters: [
+          { name: "city", in: "query", schema: { $ref: "#/components/schemas/City" } },
+          { name: "category", in: "query", schema: { type: "string", maxLength: 50 } },
+          { name: "diet", in: "query", schema: { type: "string", enum: ["Vegetarian", "Vegan", "Halal"] } },
+          {
+            name: "spice",
+            in: "query",
+            schema: { type: "string", enum: ["None", "Mild", "Medium", "Hot", "Extra_Hot"] },
+          },
+          { name: "price", in: "query", schema: { type: "string", enum: ["Budget", "Moderate", "Premium"] } },
+          {
+            name: "page",
+            in: "query",
+            description: "1-based page number",
+            schema: { type: "integer", minimum: 1, default: 1 },
+          },
+          {
+            name: "pageSize",
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "A page of matching restaurants",
+            content: {
+              "application/json": { schema: { $ref: "#/components/schemas/RestaurantPage" } },
+            },
+          },
+          "400": errorResponse("Unsupported filter value, or an invalid page/pageSize"),
+        },
+      },
+    },
     "/restaurants/{id}": {
       get: {
         tags: ["Restaurants"],

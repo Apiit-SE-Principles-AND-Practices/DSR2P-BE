@@ -24,6 +24,13 @@ function bandFor(averagePrice: number): PriceBand {
   return "Premium";
 }
 
+// Per-item price range for a band, used to filter menu items by price band.
+export function priceRangeForBand(band: PriceBand): Prisma.MenuItemWhereInput["priceLkr"] {
+  if (band === "Budget") return { lte: BUDGET_MAX };
+  if (band === "Moderate") return { gt: BUDGET_MAX, lte: MODERATE_MAX };
+  return { gt: MODERATE_MAX };
+}
+
 // Restaurant.calculateAverageRating(): mean of the three rating
 // dimensions across that restaurant's Approved reviews. null with no such reviews.
 export async function calculateRestaurantAverageRating(
