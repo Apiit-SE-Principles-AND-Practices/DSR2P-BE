@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   user: { update: vi.fn() },
+  review: { findMany: vi.fn() },
+  comment: { findMany: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -166,5 +168,60 @@ describe("PATCH /users/me", () => {
 
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("GET /users/me/reviews", () => {
+  const app = createApp();
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).get("/users/me/reviews");
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.review.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the logged-in user's reviews, any status, newest first", async () => {
+    const reviews = [{ id: 1, userId, status: "Rejected" }];
+    prismaMock.review.findMany.mockResolvedValue(reviews);
+
+    const res = await request(app).get("/users/me/reviews").set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(reviews);
+    expect(prismaMock.review.findMany).toHaveBeenCalledWith({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      include: { comments: true, response: true },
+    });
+  });
+});
+
+describe("GET /users/me/comments", () => {
+  const app = createApp();
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).get("/users/me/comments");
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.comment.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the logged-in user's comments, any status, newest first", async () => {
+    const comments = [{ id: 1, userId, status: "Pending" }];
+    prismaMock.comment.findMany.mockResolvedValue(comments);
+
+    const res = await request(app).get("/users/me/comments").set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(comments);
+    expect(prismaMock.comment.findMany).toHaveBeenCalledWith({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
   });
 });

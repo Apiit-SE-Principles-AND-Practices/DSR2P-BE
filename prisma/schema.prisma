@@ -129,6 +129,7 @@ model Review {
   reviewText        String           @map("review_text")
   language          Language         @default(en)
   status            ModerationStatus @default(Pending)
+  rejectionReason   String?          @map("rejection_reason")
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
   comments Comment[]
@@ -141,14 +142,15 @@ model Review {
 }
 
 model Comment {
-  id          Int              @id @default(autoincrement()) @map("comment_id")
-  reviewId    Int              @map("review_id")
-  review      Review           @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  userId      String           @map("user_id") @db.Uuid
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  commentText String           @map("comment_text")
-  status      ModerationStatus @default(Pending)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  id              Int              @id @default(autoincrement()) @map("comment_id")
+  reviewId        Int              @map("review_id")
+  review          Review           @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId          String           @map("user_id") @db.Uuid
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commentText     String           @map("comment_text")
+  status          ModerationStatus @default(Pending)
+  rejectionReason String?          @map("rejection_reason")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([reviewId, status], map: "idx_comments_review_status")
   @@map("comments")

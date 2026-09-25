@@ -168,6 +168,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           userId: { type: "string", format: "uuid" },
           commentText: { type: "string" },
           status: { $ref: "#/components/schemas/ModerationStatus" },
+          rejectionReason: { type: "string", nullable: true },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -208,6 +209,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           reviewText: { type: "string" },
           language: { $ref: "#/components/schemas/Language" },
           status: { $ref: "#/components/schemas/ModerationStatus" },
+          rejectionReason: { type: "string", nullable: true },
           createdAt: { type: "string", format: "date-time" },
           comments: { type: "array", items: { $ref: "#/components/schemas/Comment" } },
           response: { allOf: [{ $ref: "#/components/schemas/ReviewResponse" }], nullable: true },
@@ -407,6 +409,34 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "404": errorResponse("User no longer exists"),
+        },
+      },
+    },
+    "/users/me/reviews": {
+      get: {
+        tags: ["Users"],
+        summary: "Get the logged-in user's own reviews, every status",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Own reviews, newest first",
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Review" } } } },
+          },
+          "401": errorResponse("Not logged in"),
+        },
+      },
+    },
+    "/users/me/comments": {
+      get: {
+        tags: ["Users"],
+        summary: "Get the logged-in user's own comments, every status",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Own comments, newest first",
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Comment" } } } },
+          },
+          "401": errorResponse("Not logged in"),
         },
       },
     },
