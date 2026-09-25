@@ -3,7 +3,12 @@ import { asyncHandler } from "../../lib/asyncHandler";
 import { requireAdmin } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
-import { calculateAveragePricesFor, calculateAverageRatingsFor, priceRangeForBand } from "../../lib/ratings";
+import {
+  calculateAveragePricesFor,
+  calculateAverageRatingsFor,
+  priceRangeForBand,
+  withRatingAndPriceBand,
+} from "../../lib/ratings";
 import {
   createRestaurantSchema,
   idParamSchema,
@@ -56,7 +61,7 @@ restaurantsRouter.get(
     };
 
     if (!sort) {
-      const [total, data] = await Promise.all([
+      const [total, rows] = await Promise.all([
         prisma.restaurant.count({ where }),
         prisma.restaurant.findMany({
           where,
@@ -65,6 +70,7 @@ restaurantsRouter.get(
           take: pageSize,
         }),
       ]);
+      const data = await withRatingAndPriceBand(prisma, rows);
       res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
       return;
     }
@@ -83,7 +89,8 @@ restaurantsRouter.get(
       return (av - bv) * direction;
     });
     const total = all.length;
-    const data = all.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+    const rows = all.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+    const data = await withRatingAndPriceBand(prisma, rows);
     res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   })
 );
@@ -95,7 +102,8 @@ restaurantsRouter.get(
     const { id } = idParamSchema.parse(req.params);
     const restaurant = await prisma.restaurant.findUnique({ where: { id } });
     if (!restaurant) throw ApiError.notFound("Restaurant not found");
-    res.status(200).json(restaurant);
+    const [data] = await withRatingAndPriceBand(prisma, [restaurant]);
+    res.status(200).json(data);
   })
 );
 

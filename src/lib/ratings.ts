@@ -107,3 +107,20 @@ export async function calculateAveragePricesFor(
   });
   return new Map(rows.map((row) => [row.restaurantId, toNumber(row._avg.priceLkr!)]));
 }
+
+// [DSR2P]-13 — attach computed averageRating/priceBand to a page of restaurants.
+export async function withRatingAndPriceBand<T extends { id: string }>(
+  prisma: PrismaClient,
+  restaurants: T[]
+): Promise<(T & { averageRating: number | null; priceBand: PriceBand | null })[]> {
+  const ids = restaurants.map((r) => r.id);
+  const [ratings, prices] = await Promise.all([
+    calculateAverageRatingsFor(prisma, ids),
+    calculateAveragePricesFor(prisma, ids),
+  ]);
+  return restaurants.map((r) => ({
+    ...r,
+    averageRating: ratings.get(r.id) ?? null,
+    priceBand: prices.has(r.id) ? bandFor(prices.get(r.id)!) : null,
+  }));
+}
