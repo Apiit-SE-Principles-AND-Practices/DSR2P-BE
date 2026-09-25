@@ -10,7 +10,7 @@ const prismaMock = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
-  review: { groupBy: vi.fn() },
+  review: { groupBy: vi.fn(), findMany: vi.fn() },
   menuItem: { groupBy: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
@@ -323,6 +323,68 @@ describe("restaurants", () => {
 
     it("returns 400 for a malformed id, not 500", async () => {
       const res = await request(app).get("/restaurants/not-a-uuid/menu");
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("GET /restaurants/:id/reviews", () => {
+    const review = {
+      id: 1,
+      restaurantId: id,
+      status: "Approved",
+      comments: [],
+      response: null,
+    };
+
+    it("defaults to status=Approved, newest first", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.review.findMany.mockResolvedValue([review]);
+
+      const res = await request(app).get(`/restaurants/${id}/reviews`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([review]);
+      expect(prismaMock.review.findMany).toHaveBeenCalledWith({
+        where: { restaurantId: id, status: "Approved" },
+        orderBy: { createdAt: "desc" },
+        include: { comments: true, response: true },
+      });
+    });
+
+    it("filters by status and sorts oldest first", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.review.findMany.mockResolvedValue([]);
+
+      await request(app).get(`/restaurants/${id}/reviews?status=Pending&sort=oldest`);
+
+      expect(prismaMock.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { restaurantId: id, status: "Pending" },
+          orderBy: { createdAt: "asc" },
+        })
+      );
+    });
+
+    it("returns 404 when the restaurant doesn't exist", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(null);
+
+      const res = await request(app).get(`/restaurants/${id}/reviews`);
+
+      expect(res.status).toBe(404);
+      expect(prismaMock.review.findMany).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for an unsupported status", async () => {
+      const res = await request(app).get(`/restaurants/${id}/reviews?status=Draft`);
+
+      expect(res.status).toBe(400);
+      expect(prismaMock.restaurant.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 for a malformed id, not 500", async () => {
+      const res = await request(app).get("/restaurants/not-a-uuid/reviews");
 
       expect(res.status).toBe(400);
       expect(prismaMock.restaurant.findUnique).not.toHaveBeenCalled();

@@ -12,6 +12,7 @@ import {
 import {
   createRestaurantSchema,
   idParamSchema,
+  listReviewsQuerySchema,
   listRestaurantsQuerySchema,
   searchRestaurantsQuerySchema,
   updateRestaurantSchema,
@@ -116,6 +117,25 @@ restaurantsRouter.get(
     if (!restaurant) throw ApiError.notFound("Restaurant not found");
     const menu = await prisma.menuItem.findMany({ where: { restaurantId: id }, orderBy: { name: "asc" } });
     res.status(200).json(menu);
+  })
+);
+
+// [DSR2P]-16 — GET /restaurants/:id/reviews?status=&sort= with nested comments/response.
+// No review_likes table yet (schema.prisma is introspected from the live DB and doesn't
+// have one), so likes aren't nested here — add once that table exists.
+restaurantsRouter.get(
+  "/:id/reviews",
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const { status, sort } = listReviewsQuerySchema.parse(req.query);
+    const restaurant = await prisma.restaurant.findUnique({ where: { id } });
+    if (!restaurant) throw ApiError.notFound("Restaurant not found");
+    const reviews = await prisma.review.findMany({
+      where: { restaurantId: id, status },
+      orderBy: { createdAt: sort === "oldest" ? "asc" : "desc" },
+      include: { comments: true, response: true },
+    });
+    res.status(200).json(reviews);
   })
 );
 
