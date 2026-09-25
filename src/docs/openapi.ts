@@ -21,6 +21,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Auth", description: "Registration and login" },
     { name: "Users", description: "The logged-in user's profile" },
     { name: "Restaurants", description: "Public restaurant browsing" },
+    { name: "Reviews", description: "Submitting and reading reviews" },
     { name: "Admin", description: "Admin-only restaurant management" },
   ],
   components: {
@@ -210,6 +211,19 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
           comments: { type: "array", items: { $ref: "#/components/schemas/Comment" } },
           response: { allOf: [{ $ref: "#/components/schemas/ReviewResponse" }], nullable: true },
+        },
+      },
+      CreateReviewInput: {
+        type: "object",
+        required: ["restaurantId", "foodQualityRating", "serviceRating", "miscRating", "reviewText"],
+        properties: {
+          restaurantId: { type: "string", format: "uuid" },
+          itemId: { type: "integer", description: "Must belong to restaurantId's menu" },
+          foodQualityRating: { type: "integer", minimum: 1, maximum: 5 },
+          serviceRating: { type: "integer", minimum: 1, maximum: 5 },
+          miscRating: { type: "integer", minimum: 1, maximum: 5 },
+          reviewText: { type: "string", minLength: 1 },
+          language: { $ref: "#/components/schemas/Language" },
         },
       },
       CreateRestaurantInput: {
@@ -528,6 +542,30 @@ export const openApiSpec: OpenAPIV3.Document = {
             content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Review" } } } },
           },
           "400": errorResponse("Malformed id, or an unsupported status/sort"),
+          "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/reviews": {
+      post: {
+        tags: ["Reviews"],
+        summary: "Submit a review",
+        description: "Always created with status Pending, awaiting moderation.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateReviewInput" } } },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Review" } } },
+          },
+          "400": {
+            description: "Validation failed (rating outside 1–5, blank reviewText, or itemId not on that restaurant's menu)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
           "404": errorResponse("Restaurant not found"),
         },
       },
