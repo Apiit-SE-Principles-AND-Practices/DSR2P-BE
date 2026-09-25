@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createRestaurantSchema,
   idParamSchema,
+  listReviewsQuerySchema,
   listRestaurantsQuerySchema,
   searchRestaurantsQuerySchema,
   updateRestaurantSchema,
@@ -177,5 +178,23 @@ describe("searchRestaurantsQuerySchema", () => {
 
   it("rejects an unsupported sort", () => {
     expect(searchRestaurantsQuerySchema.safeParse({ sort: "distance" }).success).toBe(false);
+  });
+});
+
+describe("listReviewsQuerySchema", () => {
+  it("defaults to status=Approved, sort=newest", () => {
+    expect(listReviewsQuerySchema.parse({})).toEqual({ status: "Approved", sort: "newest" });
+  });
+
+  it.each(["Approved", "Rejected", "Pending"])("accepts status %s", (status) => {
+    expect(listReviewsQuerySchema.safeParse({ status }).success).toBe(true);
+  });
+
+  it("rejects an unsupported status", () => {
+    expect(listReviewsQuerySchema.safeParse({ status: "Draft" }).success).toBe(false);
+  });
+
+  it("rejects an unsupported sort", () => {
+    expect(listReviewsQuerySchema.safeParse({ sort: "top" }).success).toBe(false);
   });
 });

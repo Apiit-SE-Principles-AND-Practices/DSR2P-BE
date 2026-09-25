@@ -11,6 +11,8 @@ const dietEnum = z.enum(["Vegetarian", "Vegan", "Halal"]);
 const spiceEnum = z.enum(["None", "Mild", "Medium", "Hot", "Extra_Hot"]);
 const priceBandEnum = z.enum(["Budget", "Moderate", "Premium"]);
 const sortEnum = z.enum(["rating", "price"]);
+const moderationStatusEnum = z.enum(["Approved", "Rejected", "Pending"]);
+const reviewSortEnum = z.enum(["newest", "oldest"]);
 
 export const idParamSchema = z.object({
   id: z.string().uuid("Invalid restaurant id"),
@@ -79,6 +81,12 @@ export const searchRestaurantsQuerySchema = z.object({
   sort: sortEnum.optional(),
   page: listRestaurantsQuerySchema.shape.page,
   pageSize: listRestaurantsQuerySchema.shape.pageSize,
+});
+
+// [DSR2P]-16 — GET /restaurants/:id/reviews?status=&sort= — defaults to Approved, newest first
+export const listReviewsQuerySchema = z.object({
+  status: moderationStatusEnum.default("Approved"),
+  sort: reviewSortEnum.default("newest"),
 });
 
 export type CreateRestaurantInput = z.infer<typeof createRestaurantSchema>;
