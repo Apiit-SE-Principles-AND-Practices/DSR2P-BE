@@ -346,6 +346,12 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           { name: "price", in: "query", schema: { type: "string", enum: ["Budget", "Moderate", "Premium"] } },
           {
+            name: "sort",
+            in: "query",
+            description: "rating: best-rated first. price: cheapest first. Default: newest first.",
+            schema: { type: "string", enum: ["rating", "price"] },
+          },
+          {
             name: "page",
             in: "query",
             description: "1-based page number",

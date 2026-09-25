@@ -10,6 +10,8 @@ const prismaMock = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  review: { groupBy: vi.fn() },
+  menuItem: { groupBy: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -168,6 +170,50 @@ describe("restaurants", () => {
 
       expect(res.status).toBe(400);
       expect(prismaMock.restaurant.findMany).not.toHaveBeenCalled();
+    });
+
+    it("sorts by rating, best-rated first, unrated last", async () => {
+      const low = { ...restaurant, id: "low" };
+      const unrated = { ...restaurant, id: "unrated" };
+      const high = { ...restaurant, id: "high" };
+      prismaMock.restaurant.findMany.mockResolvedValue([low, unrated, high]);
+      prismaMock.review.groupBy.mockResolvedValue([
+        { restaurantId: "low", _avg: { foodQualityRating: 2, serviceRating: 2, miscRating: 2 } },
+        { restaurantId: "high", _avg: { foodQualityRating: 5, serviceRating: 5, miscRating: 5 } },
+      ]);
+
+      const res = await request(app).get("/restaurants/search?sort=rating");
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.map((r: { id: string }) => r.id)).toEqual(["high", "low", "unrated"]);
+      expect(res.body.total).toBe(3);
+      expect(prismaMock.restaurant.count).not.toHaveBeenCalled();
+    });
+
+    it("sorts by price, cheapest first, unpriced last", async () => {
+      const cheap = { ...restaurant, id: "cheap" };
+      const unpriced = { ...restaurant, id: "unpriced" };
+      const pricey = { ...restaurant, id: "pricey" };
+      prismaMock.restaurant.findMany.mockResolvedValue([pricey, unpriced, cheap]);
+      prismaMock.menuItem.groupBy.mockResolvedValue([
+        { restaurantId: "pricey", _avg: { priceLkr: 5000 } },
+        { restaurantId: "cheap", _avg: { priceLkr: 500 } },
+      ]);
+
+      const res = await request(app).get("/restaurants/search?sort=price");
+
+      expect(res.body.data.map((r: { id: string }) => r.id)).toEqual(["cheap", "pricey", "unpriced"]);
+    });
+
+    it("paginates sorted results", async () => {
+      const rows = ["a", "b", "c"].map((id) => ({ ...restaurant, id }));
+      prismaMock.restaurant.findMany.mockResolvedValue(rows);
+      prismaMock.menuItem.groupBy.mockResolvedValue([]);
+
+      const res = await request(app).get("/restaurants/search?sort=price&page=2&pageSize=2");
+
+      expect(res.body).toMatchObject({ page: 2, pageSize: 2, total: 3 });
+      expect(res.body.data).toHaveLength(1);
     });
   });
 

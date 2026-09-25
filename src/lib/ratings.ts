@@ -75,3 +75,35 @@ export async function calculateRestaurantPriceBand(
   });
   return _avg.priceLkr === null ? null : bandFor(toNumber(_avg.priceLkr));
 }
+
+// Batched versions of the two calculators above, for sorting/annotating a
+// search result page without one query per restaurant. Restaurants with no
+// qualifying rows are simply absent from the returned map.
+export async function calculateAverageRatingsFor(
+  prisma: PrismaClient,
+  restaurantIds: string[]
+): Promise<Map<string, number>> {
+  const rows = await prisma.review.groupBy({
+    by: ["restaurantId"],
+    where: { restaurantId: { in: restaurantIds }, status: "Approved" },
+    _avg: { foodQualityRating: true, serviceRating: true, miscRating: true },
+  });
+  return new Map(
+    rows.map((row) => [
+      row.restaurantId,
+      round1((row._avg.foodQualityRating! + row._avg.serviceRating! + row._avg.miscRating!) / 3),
+    ])
+  );
+}
+
+export async function calculateAveragePricesFor(
+  prisma: PrismaClient,
+  restaurantIds: string[]
+): Promise<Map<string, number>> {
+  const rows = await prisma.menuItem.groupBy({
+    by: ["restaurantId"],
+    where: { restaurantId: { in: restaurantIds } },
+    _avg: { priceLkr: true },
+  });
+  return new Map(rows.map((row) => [row.restaurantId, toNumber(row._avg.priceLkr!)]));
+}

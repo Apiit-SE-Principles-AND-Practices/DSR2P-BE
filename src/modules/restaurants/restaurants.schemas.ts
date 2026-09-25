@@ -10,6 +10,7 @@ const cityEnum = z.enum(["Colombo", "Kandy", "Galle"]);
 const dietEnum = z.enum(["Vegetarian", "Vegan", "Halal"]);
 const spiceEnum = z.enum(["None", "Mild", "Medium", "Hot", "Extra_Hot"]);
 const priceBandEnum = z.enum(["Budget", "Moderate", "Premium"]);
+const sortEnum = z.enum(["rating", "price"]);
 
 export const idParamSchema = z.object({
   id: z.string().uuid("Invalid restaurant id"),
@@ -75,6 +76,7 @@ export const searchRestaurantsQuerySchema = z.object({
   diet: dietEnum.optional(),
   spice: spiceEnum.optional(),
   price: priceBandEnum.optional(),
+  sort: sortEnum.optional(),
   page: listRestaurantsQuerySchema.shape.page,
   pageSize: listRestaurantsQuerySchema.shape.pageSize,
 });

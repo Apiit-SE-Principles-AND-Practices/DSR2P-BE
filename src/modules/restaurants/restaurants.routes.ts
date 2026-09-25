@@ -3,7 +3,7 @@ import { asyncHandler } from "../../lib/asyncHandler";
 import { requireAdmin } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
-import { priceRangeForBand } from "../../lib/ratings";
+import { calculateAveragePricesFor, calculateAverageRatingsFor, priceRangeForBand } from "../../lib/ratings";
 import {
   createRestaurantSchema,
   idParamSchema,
@@ -39,7 +39,7 @@ restaurantsRouter.get(
 restaurantsRouter.get(
   "/search",
   asyncHandler(async (req, res) => {
-    const { city, category, diet, spice, price, page, pageSize } = searchRestaurantsQuerySchema.parse(
+    const { city, category, diet, spice, price, sort, page, pageSize } = searchRestaurantsQuerySchema.parse(
       req.query
     );
     const menuItemFilter: Prisma.MenuItemWhereInput = {
@@ -54,15 +54,36 @@ restaurantsRouter.get(
       ...(category && { category }),
       ...(Object.keys(menuItemFilter).length > 0 && { menuItems: { some: menuItemFilter } }),
     };
-    const [total, data] = await Promise.all([
-      prisma.restaurant.count({ where }),
-      prisma.restaurant.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
+
+    if (!sort) {
+      const [total, data] = await Promise.all([
+        prisma.restaurant.count({ where }),
+        prisma.restaurant.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      ]);
+      res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
+      return;
+    }
+
+    // Rating/price are computed, not stored, so sorting by them means pulling every
+    // match, ranking in memory, then paginating — fine at this dataset's scale.
+    const all = await prisma.restaurant.findMany({ where });
+    const ids = all.map((r) => r.id);
+    const sortValues =
+      sort === "rating" ? await calculateAverageRatingsFor(prisma, ids) : await calculateAveragePricesFor(prisma, ids);
+    const direction = sort === "rating" ? -1 : 1; // best-rated first; cheapest first
+    all.sort((a, b) => {
+      const av = sortValues.get(a.id);
+      const bv = sortValues.get(b.id);
+      if (av === undefined || bv === undefined) return av === bv ? 0 : av === undefined ? 1 : -1;
+      return (av - bv) * direction;
+    });
+    const total = all.length;
+    const data = all.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
     res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   })
 );
