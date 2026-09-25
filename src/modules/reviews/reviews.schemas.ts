@@ -19,4 +19,14 @@ export const createReviewSchema = z.object({
   language: z.enum(["en", "si", "ta"]).optional(),
 });
 
+// [DSR2P]-19 — POST /reviews/:id/comments
+export const reviewIdParamSchema = z.object({
+  id: z.coerce.number().int("Invalid review id").positive("Invalid review id"),
+});
+
+export const createCommentSchema = z.object({
+  commentText: z.string().trim().min(1, "Comment text is required"),
+});
+
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;

@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMock = vi.hoisted(() => ({
   restaurant: { findUnique: vi.fn() },
   menuItem: { findFirst: vi.fn() },
-  review: { create: vi.fn() },
+  review: { create: vi.fn(), findUnique: vi.fn() },
+  comment: { create: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
 
@@ -86,5 +87,75 @@ describe("POST /reviews", () => {
 
     expect(res.status).toBe(400);
     expect(prismaMock.review.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /reviews/:id/comments", () => {
+  const app = createApp();
+  const review = { id: 1 };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.review.findUnique.mockResolvedValue(review);
+  });
+
+  it("requires authentication", async () => {
+    const res = await request(app).post("/reviews/1/comments").send({ commentText: "Agreed!" });
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.comment.create).not.toHaveBeenCalled();
+  });
+
+  it("comments as the logged-in user", async () => {
+    prismaMock.comment.create.mockResolvedValue({
+      id: 1,
+      reviewId: 1,
+      userId,
+      commentText: "Agreed!",
+      status: "Pending",
+    });
+
+    const res = await request(app)
+      .post("/reviews/1/comments")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ commentText: "Agreed!" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe("Pending");
+    expect(prismaMock.comment.create).toHaveBeenCalledWith({
+      data: { reviewId: 1, commentText: "Agreed!", userId },
+    });
+  });
+
+  it("returns 404 for a review that doesn't exist", async () => {
+    prismaMock.review.findUnique.mockResolvedValue(null);
+
+    const res = await request(app)
+      .post("/reviews/1/comments")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ commentText: "Agreed!" });
+
+    expect(res.status).toBe(404);
+    expect(prismaMock.comment.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for blank commentText", async () => {
+    const res = await request(app)
+      .post("/reviews/1/comments")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ commentText: "  " });
+
+    expect(res.status).toBe(400);
+    expect(prismaMock.comment.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a malformed review id, not 500", async () => {
+    const res = await request(app)
+      .post("/reviews/not-a-number/comments")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ commentText: "Agreed!" });
+
+    expect(res.status).toBe(400);
+    expect(prismaMock.review.findUnique).not.toHaveBeenCalled();
   });
 });

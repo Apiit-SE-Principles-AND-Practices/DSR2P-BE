@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createReviewSchema } from "../src/modules/reviews/reviews.schemas";
+import { createCommentSchema, createReviewSchema, reviewIdParamSchema } from "../src/modules/reviews/reviews.schemas";
 
 const valid = {
   restaurantId: "3f1c7a52-9a2e-4b1e-8f3a-0c6d2e5b7a91",
@@ -58,5 +58,33 @@ describe("createReviewSchema", () => {
   it("rejects a non-uuid restaurantId", () => {
     const result = createReviewSchema.safeParse({ ...valid, restaurantId: "not-a-uuid" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("reviewIdParamSchema", () => {
+  it("coerces a numeric id", () => {
+    expect(reviewIdParamSchema.parse({ id: "42" })).toEqual({ id: 42 });
+  });
+
+  it("rejects a non-numeric id", () => {
+    expect(reviewIdParamSchema.safeParse({ id: "abc" }).success).toBe(false);
+  });
+
+  it("rejects a non-positive id", () => {
+    expect(reviewIdParamSchema.safeParse({ id: "0" }).success).toBe(false);
+  });
+});
+
+describe("createCommentSchema", () => {
+  it("accepts non-blank commentText", () => {
+    expect(createCommentSchema.parse({ commentText: "Agreed!" })).toEqual({ commentText: "Agreed!" });
+  });
+
+  it("rejects blank commentText", () => {
+    expect(createCommentSchema.safeParse({ commentText: "   " }).success).toBe(false);
+  });
+
+  it("rejects a missing commentText", () => {
+    expect(createCommentSchema.safeParse({}).success).toBe(false);
   });
 });
