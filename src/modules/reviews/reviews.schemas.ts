@@ -28,5 +28,10 @@ export const createCommentSchema = z.object({
   commentText: z.string().trim().min(1, "Comment text is required"),
 });
 
+// [DSR2P]-20 — POST /reviews/:id/response
+export const createResponseSchema = z.object({
+  responseText: z.string().trim().min(1, "Response text is required"),
+});
+
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

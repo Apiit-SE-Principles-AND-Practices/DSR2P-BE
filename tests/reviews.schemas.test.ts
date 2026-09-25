@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createCommentSchema, createReviewSchema, reviewIdParamSchema } from "../src/modules/reviews/reviews.schemas";
+import {
+  createCommentSchema,
+  createResponseSchema,
+  createReviewSchema,
+  reviewIdParamSchema,
+} from "../src/modules/reviews/reviews.schemas";
 
 const valid = {
   restaurantId: "3f1c7a52-9a2e-4b1e-8f3a-0c6d2e5b7a91",
@@ -86,5 +91,19 @@ describe("createCommentSchema", () => {
 
   it("rejects a missing commentText", () => {
     expect(createCommentSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("createResponseSchema", () => {
+  it("accepts non-blank responseText", () => {
+    expect(createResponseSchema.parse({ responseText: "Thanks!" })).toEqual({ responseText: "Thanks!" });
+  });
+
+  it("rejects blank responseText", () => {
+    expect(createResponseSchema.safeParse({ responseText: "   " }).success).toBe(false);
+  });
+
+  it("rejects a missing responseText", () => {
+    expect(createResponseSchema.safeParse({}).success).toBe(false);
   });
 });

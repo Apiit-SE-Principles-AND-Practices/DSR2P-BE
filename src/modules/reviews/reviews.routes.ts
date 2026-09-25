@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { asyncHandler } from "../../lib/asyncHandler";
-import { requireAuth } from "../../middleware/auth";
+import { requireAdmin, requireAuth } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
-import { createCommentSchema, createReviewSchema, reviewIdParamSchema } from "./reviews.schemas";
+import { createCommentSchema, createResponseSchema, createReviewSchema, reviewIdParamSchema } from "./reviews.schemas";
 
 export const reviewsRouter = Router();
 
@@ -46,5 +46,22 @@ reviewsRouter.post(
       data: { reviewId: id, commentText, userId: req.user!.sub },
     });
     res.status(201).json(comment);
+  })
+);
+
+// [DSR2P]-20 — POST /reviews/:id/response (Admin-only). UNIQUE(review_id) on responses
+// means a second response for the same review 409s via the Prisma P2002 handler.
+reviewsRouter.post(
+  "/:id/response",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = reviewIdParamSchema.parse(req.params);
+    const { responseText } = createResponseSchema.parse(req.body);
+
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) throw ApiError.notFound("Review not found");
+
+    const response = await prisma.response.create({ data: { reviewId: id, responseText } });
+    res.status(201).json(response);
   })
 );
