@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/auth.routes";
 import { healthRouter } from "./modules/health/health.routes";
 import { adminRestaurantsRouter, restaurantsRouter } from "./modules/restaurants/restaurants.routes";
+import { reviewsRouter } from "./modules/reviews/reviews.routes";
 import { usersRouter } from "./modules/users/users.routes";
 
 export function createApp() {
@@ -27,6 +28,7 @@ export function createApp() {
   app.use("/users", usersRouter);
   app.use("/restaurants", restaurantsRouter);
   app.use("/admin/restaurants", adminRestaurantsRouter);
+  app.use("/reviews", reviewsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
