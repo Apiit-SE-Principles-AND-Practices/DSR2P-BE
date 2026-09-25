@@ -24,11 +24,11 @@ for local setup.
    - README with local setup (2-BE4)
    - `GET /health`
 3. **[DSR2P-4] Registration** — `POST /auth/register` (4-BE1), 409 duplicate / 400 field errors (4-BE2) done
-4. **[DSR2P-5] Login** — `POST /auth/login` (5-BE1) done 
-5. **[DSR2P-6] Profile update** — `PATCH /users/me` (6-BE1) done
+4. **[DSR2P-5] Login** — `POST /auth/login` (5-BE1) done
+5. **[DSR2P-6] Profile update** — `PATCH /users/me` (6-BE1) done 
 6. **[DSR2P-7] Auth/Admin gating middleware** — `requireAuth()` (7-BE1), `requireAdmin()` (7-BE2) done
 
-## Phase 1 CRUD Restuarant
+## Phase 1 CRUD Restuarant done
 
 ## Phase 1.1 — Browse & Search (Epic 3) + Derived Calculations (Epic 6)
 7. **[DSR2P-23/24/25]** `calculateAverageRating()` (restaurant + item scoped), `calculatePriceBand()` — pure query-time, no stored columns
@@ -56,7 +56,7 @@ for local setup.
 23. **[DSR2P-27]** verify UTF8 round-trip for all free-text fields
 
 ## Phase 5 — Admin Management (Epic 8)
-24. **[DSR2P-29]** `POST/PUT/DELETE /admin/restaurants` (+ initial menu items on create), CASCADE delete
+24. **[DSR2P-29]** `POST/PUT/DELETE /admin/restaurants` (+ initial menu items on create), CASCADE delete - done
 25. **[DSR2P-30]** `POST/PUT/DELETE /admin/restaurants/:id/menu-items` (price >=0 check)
 26. **[DSR2P-31]** image_url/content fields in update endpoints
 
