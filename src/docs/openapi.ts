@@ -228,6 +228,13 @@ export const openApiSpec: OpenAPIV3.Document = {
           language: { $ref: "#/components/schemas/Language" },
         },
       },
+      CreateCommentInput: {
+        type: "object",
+        required: ["commentText"],
+        properties: {
+          commentText: { type: "string", minLength: 1 },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -597,6 +604,31 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/reviews/{id}/comments": {
+      post: {
+        tags: ["Reviews"],
+        summary: "Comment on a review",
+        description: "Always created with status Pending, awaiting moderation.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateCommentInput" } } },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Comment" } } },
+          },
+          "400": {
+            description: "Validation failed (blank commentText, or malformed review id)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "404": errorResponse("Review not found"),
         },
       },
     },
