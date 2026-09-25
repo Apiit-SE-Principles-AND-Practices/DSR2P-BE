@@ -107,6 +107,18 @@ restaurantsRouter.get(
   })
 );
 
+// [DSR2P]-15 — GET /restaurants/:id/menu
+restaurantsRouter.get(
+  "/:id/menu",
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const restaurant = await prisma.restaurant.findUnique({ where: { id } });
+    if (!restaurant) throw ApiError.notFound("Restaurant not found");
+    const menu = await prisma.menuItem.findMany({ where: { restaurantId: id }, orderBy: { name: "asc" } });
+    res.status(200).json(menu);
+  })
+);
+
 // Admin-only writes, mounted at /admin/restaurants.
 export const adminRestaurantsRouter = Router();
 adminRestaurantsRouter.use(requireAdmin);

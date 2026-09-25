@@ -142,6 +142,21 @@ export const openApiSpec: OpenAPIV3.Document = {
           totalPages: { type: "integer" },
         },
       },
+      SpiceLevel: { type: "string", enum: ["None", "Mild", "Medium", "Hot", "Extra_Hot"] },
+      MenuItem: {
+        type: "object",
+        required: ["id", "name", "priceLkr", "isVegetarian", "isVegan", "isHalal", "spiceLevel"],
+        properties: {
+          id: { type: "integer" },
+          name: { type: "string" },
+          priceLkr: { type: "number" },
+          isVegetarian: { type: "boolean" },
+          isVegan: { type: "boolean" },
+          isHalal: { type: "boolean" },
+          spiceLevel: { $ref: "#/components/schemas/SpiceLevel" },
+          imageUrl: { type: "string", nullable: true },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -412,6 +427,21 @@ export const openApiSpec: OpenAPIV3.Document = {
           "200": {
             description: "Restaurant, with computed averageRating/priceBand",
             content: { "application/json": { schema: { $ref: "#/components/schemas/RestaurantSearchResult" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/restaurants/{id}/menu": {
+      get: {
+        tags: ["Restaurants"],
+        summary: "Get a restaurant's menu",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": {
+            description: "Menu items, alphabetical by name",
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/MenuItem" } } } },
           },
           "400": errorResponse("Malformed id"),
           "404": errorResponse("Restaurant not found"),
