@@ -42,6 +42,8 @@ describe("restaurants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.restaurant.count.mockResolvedValue(1);
+    prismaMock.review.groupBy.mockResolvedValue([]);
+    prismaMock.menuItem.groupBy.mockResolvedValue([]);
   });
 
   describe("GET /restaurants", () => {
@@ -130,6 +132,26 @@ describe("restaurants", () => {
       expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: {} })
       );
+    });
+
+    it("includes computed averageRating/priceBand per restaurant", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([restaurant]);
+      prismaMock.review.groupBy.mockResolvedValue([
+        { restaurantId: id, _avg: { foodQualityRating: 4, serviceRating: 4, miscRating: 4 } },
+      ]);
+      prismaMock.menuItem.groupBy.mockResolvedValue([{ restaurantId: id, _avg: { priceLkr: 500 } }]);
+
+      const res = await request(app).get("/restaurants/search");
+
+      expect(res.body.data[0]).toMatchObject({ id, averageRating: 4, priceBand: "Budget" });
+    });
+
+    it("returns null averageRating/priceBand for a restaurant with neither reviews nor menu items", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([restaurant]);
+
+      const res = await request(app).get("/restaurants/search");
+
+      expect(res.body.data[0]).toMatchObject({ averageRating: null, priceBand: null });
     });
 
     it("filters by city and category", async () => {
@@ -225,6 +247,26 @@ describe("restaurants", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(id);
+    });
+
+    it("includes computed averageRating/priceBand", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.review.groupBy.mockResolvedValue([
+        { restaurantId: id, _avg: { foodQualityRating: 4, serviceRating: 4, miscRating: 4 } },
+      ]);
+      prismaMock.menuItem.groupBy.mockResolvedValue([{ restaurantId: id, _avg: { priceLkr: 500 } }]);
+
+      const res = await request(app).get(`/restaurants/${id}`);
+
+      expect(res.body).toMatchObject({ averageRating: 4, priceBand: "Budget" });
+    });
+
+    it("returns null averageRating/priceBand with no reviews or menu items", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+
+      const res = await request(app).get(`/restaurants/${id}`);
+
+      expect(res.body).toMatchObject({ averageRating: null, priceBand: null });
     });
 
     it("returns 404 when it doesn't exist", async () => {

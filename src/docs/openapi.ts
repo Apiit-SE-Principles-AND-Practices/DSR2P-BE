@@ -113,6 +113,35 @@ export const openApiSpec: OpenAPIV3.Document = {
           totalPages: { type: "integer" },
         },
       },
+      PriceBand: { type: "string", enum: ["Budget", "Moderate", "Premium"] },
+      RestaurantSearchResult: {
+        allOf: [
+          { $ref: "#/components/schemas/Restaurant" },
+          {
+            type: "object",
+            required: ["averageRating", "priceBand"],
+            properties: {
+              averageRating: {
+                type: "number",
+                nullable: true,
+                description: "Mean of the three rating dimensions across Approved reviews; null with none",
+              },
+              priceBand: { allOf: [{ $ref: "#/components/schemas/PriceBand" }], nullable: true },
+            },
+          },
+        ],
+      },
+      RestaurantSearchPage: {
+        type: "object",
+        required: ["data", "page", "pageSize", "total", "totalPages"],
+        properties: {
+          data: { type: "array", items: { $ref: "#/components/schemas/RestaurantSearchResult" } },
+          page: { type: "integer", minimum: 1, example: 1 },
+          pageSize: { type: "integer", minimum: 1, maximum: 100, example: 20 },
+          total: { type: "integer", description: "Total matching restaurants, across all pages" },
+          totalPages: { type: "integer" },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -365,9 +394,9 @@ export const openApiSpec: OpenAPIV3.Document = {
         ],
         responses: {
           "200": {
-            description: "A page of matching restaurants",
+            description: "A page of matching restaurants, each with computed averageRating/priceBand",
             content: {
-              "application/json": { schema: { $ref: "#/components/schemas/RestaurantPage" } },
+              "application/json": { schema: { $ref: "#/components/schemas/RestaurantSearchPage" } },
             },
           },
           "400": errorResponse("Unsupported filter value, or an invalid page/pageSize"),
@@ -381,8 +410,8 @@ export const openApiSpec: OpenAPIV3.Document = {
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
           "200": {
-            description: "Restaurant",
-            content: { "application/json": { schema: { $ref: "#/components/schemas/Restaurant" } } },
+            description: "Restaurant, with computed averageRating/priceBand",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/RestaurantSearchResult" } } },
           },
           "400": errorResponse("Malformed id"),
           "404": errorResponse("Restaurant not found"),

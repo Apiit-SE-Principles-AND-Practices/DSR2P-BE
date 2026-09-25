@@ -4,6 +4,7 @@ import {
   calculateMenuItemAverageRating,
   calculateRestaurantAverageRating,
   calculateRestaurantPriceBand,
+  withRatingAndPriceBand,
 } from "../src/lib/ratings";
 
 function fakePrisma(overrides: {
@@ -106,5 +107,31 @@ describe("calculateRestaurantPriceBand", () => {
       where: { restaurantId: "r1" },
       _avg: { priceLkr: true },
     });
+  });
+});
+
+describe("withRatingAndPriceBand", () => {
+  function fakeGroupByPrisma() {
+    return {
+      review: {
+        groupBy: vi.fn().mockResolvedValue([
+          { restaurantId: "r1", _avg: { foodQualityRating: 5, serviceRating: 5, miscRating: 5 } },
+        ]),
+      },
+      menuItem: {
+        groupBy: vi.fn().mockResolvedValue([{ restaurantId: "r1", _avg: { priceLkr: 500 } }]),
+      },
+    } as unknown as PrismaClient;
+  }
+
+  it("attaches averageRating/priceBand to each restaurant", async () => {
+    const prisma = fakeGroupByPrisma();
+
+    const result = await withRatingAndPriceBand(prisma, [{ id: "r1" }, { id: "r2" }]);
+
+    expect(result).toEqual([
+      { id: "r1", averageRating: 5, priceBand: "Budget" },
+      { id: "r2", averageRating: null, priceBand: null },
+    ]);
   });
 });
