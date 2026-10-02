@@ -8,7 +8,7 @@ export const IMAGE_URL_MAX = 255;
 
 const cityEnum = z.enum(["Colombo", "Kandy", "Galle"]);
 const dietEnum = z.enum(["Vegetarian", "Vegan", "Halal"]);
-const spiceEnum = z.enum(["None", "Mild", "Medium", "Hot", "Extra_Hot"]);
+export const spiceEnum = z.enum(["None", "Mild", "Medium", "Hot", "Extra_Hot"]);
 const priceBandEnum = z.enum(["Budget", "Moderate", "Premium"]);
 const sortEnum = z.enum(["rating", "price"]);
 const moderationStatusEnum = z.enum(["Approved", "Rejected", "Pending"]);

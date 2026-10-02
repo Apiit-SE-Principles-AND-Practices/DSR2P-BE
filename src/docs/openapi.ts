@@ -242,6 +242,33 @@ export const openApiSpec: OpenAPIV3.Document = {
           responseText: { type: "string", minLength: 1 },
         },
       },
+      CreateMenuItemInput: {
+        type: "object",
+        description: "multipart/form-data: fields below plus an optional \"image\" file",
+        required: ["name", "priceLkr"],
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 150 },
+          priceLkr: { type: "number", minimum: 0 },
+          isVegetarian: { type: "boolean", default: false },
+          isVegan: { type: "boolean", default: false },
+          isHalal: { type: "boolean", default: false },
+          spiceLevel: { $ref: "#/components/schemas/SpiceLevel" },
+          image: { type: "string", format: "binary" },
+        },
+      },
+      UpdateMenuItemInput: {
+        type: "object",
+        description: "multipart/form-data: at least one field below, plus an optional \"image\" file",
+        properties: {
+          name: { type: "string", minLength: 1, maxLength: 150 },
+          priceLkr: { type: "number", minimum: 0 },
+          isVegetarian: { type: "boolean" },
+          isVegan: { type: "boolean" },
+          isHalal: { type: "boolean" },
+          spiceLevel: { $ref: "#/components/schemas/SpiceLevel" },
+          image: { type: "string", format: "binary" },
+        },
+      },
       CreateRestaurantInput: {
         type: "object",
         required: ["name", "city", "category", "address"],
@@ -728,6 +755,79 @@ export const openApiSpec: OpenAPIV3.Document = {
           "401": errorResponse("Not logged in"),
           "403": errorResponse("Not an Admin"),
           "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/admin/restaurants/{id}/menu-items": {
+      post: {
+        tags: ["Admin"],
+        summary: "Add a menu item, with an optional image",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": { schema: { $ref: "#/components/schemas/CreateMenuItemInput" } },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/MenuItem" } } },
+          },
+          "400": {
+            description: "Validation failed (blank/over-long name, price below 0, unsupported spiceLevel)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/admin/restaurants/{id}/menu-items/{itemId}": {
+      put: {
+        tags: ["Admin"],
+        summary: "Update a menu item, optionally replacing its image",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "itemId", in: "path", required: true, schema: { type: "integer" } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": { schema: { $ref: "#/components/schemas/UpdateMenuItemInput" } },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/MenuItem" } } },
+          },
+          "400": {
+            description: "Validation failed, or malformed id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Menu item not found"),
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "Delete a menu item",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "itemId", in: "path", required: true, schema: { type: "integer" } },
+        ],
+        responses: {
+          "204": { description: "Deleted" },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Menu item not found"),
         },
       },
     },
