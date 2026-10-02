@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { asyncHandler } from "../../lib/asyncHandler";
 import { requireAdmin } from "../../middleware/auth";
+import { uploadImage as uploadImageMiddleware } from "../../middleware/upload";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
+import { uploadImage } from "../../lib/imageUpload";
 import {
   calculateAveragePricesFor,
   calculateAverageRatingsFor,
@@ -17,6 +19,7 @@ import {
   searchRestaurantsQuerySchema,
   updateRestaurantSchema,
 } from "./restaurants.schemas";
+import { createMenuItemSchema, restaurantItemParamsSchema, updateMenuItemSchema } from "./menu-items.schemas";
 import type { Prisma } from "@prisma/client";
 
 // Public reads, mounted at /restaurants.
@@ -170,6 +173,62 @@ adminRestaurantsRouter.delete(
   asyncHandler(async (req, res) => {
     const { id } = idParamSchema.parse(req.params);
     await prisma.restaurant.delete({ where: { id } });
+    res.status(204).send();
+  })
+);
+
+async function requireRestaurant(restaurantId: string) {
+  const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } });
+  if (!restaurant) throw ApiError.notFound("Restaurant not found");
+}
+
+// MenuItem's only unique key is its own id, so "scoped to this restaurant" needs an
+// existence check before update/delete, not a compound where clause.
+async function requireMenuItem(restaurantId: string, itemId: number) {
+  const item = await prisma.menuItem.findFirst({ where: { id: itemId, restaurantId } });
+  if (!item) throw ApiError.notFound("Menu item not found");
+}
+
+// [DSR2P]-30 — POST /admin/restaurants/:id/menu-items (multipart: fields + optional "image" file)
+adminRestaurantsRouter.post(
+  "/:id/menu-items",
+  uploadImageMiddleware,
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const input = createMenuItemSchema.parse(req.body);
+    await requireRestaurant(id);
+
+    const imageUrl = req.file ? await uploadImage(req.file.buffer) : undefined;
+    const item = await prisma.menuItem.create({ data: { ...input, restaurantId: id, imageUrl } });
+    res.status(201).json(item);
+  })
+);
+
+// PUT /admin/restaurants/:id/menu-items/:itemId
+adminRestaurantsRouter.put(
+  "/:id/menu-items/:itemId",
+  uploadImageMiddleware,
+  asyncHandler(async (req, res) => {
+    const { id, itemId } = restaurantItemParamsSchema.parse(req.params);
+    const input = updateMenuItemSchema.parse(req.body);
+    await requireMenuItem(id, itemId);
+
+    const imageUrl = req.file ? await uploadImage(req.file.buffer) : undefined;
+    const item = await prisma.menuItem.update({
+      where: { id: itemId },
+      data: { ...input, imageUrl },
+    });
+    res.status(200).json(item);
+  })
+);
+
+// DELETE /admin/restaurants/:id/menu-items/:itemId
+adminRestaurantsRouter.delete(
+  "/:id/menu-items/:itemId",
+  asyncHandler(async (req, res) => {
+    const { id, itemId } = restaurantItemParamsSchema.parse(req.params);
+    await requireMenuItem(id, itemId);
+    await prisma.menuItem.delete({ where: { id: itemId } });
     res.status(204).send();
   })
 );
