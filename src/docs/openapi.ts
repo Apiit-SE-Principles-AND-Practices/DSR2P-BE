@@ -884,5 +884,31 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
     },
+    "/admin/moderation/queue": {
+      get: {
+        tags: ["Admin"],
+        summary: "List everything awaiting moderation",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Every Pending review and comment, oldest first",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["reviews", "comments"],
+                  properties: {
+                    reviews: { type: "array", items: { $ref: "#/components/schemas/Review" } },
+                    comments: { type: "array", items: { $ref: "#/components/schemas/Comment" } },
+                  },
+                },
+              },
+            },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+        },
+      },
+    },
   },
 };
