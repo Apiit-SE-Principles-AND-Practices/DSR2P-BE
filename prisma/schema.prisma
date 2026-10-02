@@ -134,11 +134,24 @@ model Review {
 
   comments Comment[]
   response Response?
+  images   ReviewImage[]
 
   @@index([itemId, status], map: "idx_reviews_item_status")
   @@index([restaurantId, status], map: "idx_reviews_restaurant_status")
   @@index([userId], map: "idx_reviews_user")
   @@map("reviews")
+}
+
+// [DSR2P]-21 — photos attached to a review. A review may have several.
+model ReviewImage {
+  id        Int      @id @default(autoincrement()) @map("image_id")
+  reviewId  Int      @map("review_id")
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  imageUrl  String   @map("image_url") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([reviewId], map: "idx_review_images_review")
+  @@map("review_images")
 }
 
 model Comment {

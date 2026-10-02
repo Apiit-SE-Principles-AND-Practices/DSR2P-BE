@@ -4,11 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMock = vi.hoisted(() => ({
   restaurant: { findUnique: vi.fn() },
   menuItem: { findFirst: vi.fn() },
-  review: { create: vi.fn(), findUnique: vi.fn() },
+  review: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
   comment: { create: vi.fn() },
   response: { create: vi.fn() },
 }));
 vi.mock("../src/lib/prisma", () => ({ prisma: prismaMock }));
+
+const uploadImageMock = vi.hoisted(() => vi.fn());
+vi.mock("../src/lib/imageUpload", () => ({ uploadImage: uploadImageMock }));
 
 import { Prisma } from "@prisma/client";
 import { createApp } from "../src/app";
@@ -49,7 +52,35 @@ describe("POST /reviews", () => {
 
     expect(res.status).toBe(201);
     expect(res.body.status).toBe("Pending");
-    expect(prismaMock.review.create).toHaveBeenCalledWith({ data: { ...body, userId } });
+    expect(prismaMock.review.create).toHaveBeenCalledWith({
+      data: { ...body, userId, images: { create: [] } },
+      include: { images: true },
+    });
+  });
+
+  it("uploads attached images and links them to the review", async () => {
+    uploadImageMock.mockResolvedValue("https://bucket.s3.region.amazonaws.com/dsr2p/uuid.jpg");
+    prismaMock.review.create.mockResolvedValue({ id: 1, ...body, userId, status: "Pending" });
+
+    const res = await request(app)
+      .post("/reviews")
+      .set("Authorization", `Bearer ${token}`)
+      .field("restaurantId", body.restaurantId)
+      .field("foodQualityRating", String(body.foodQualityRating))
+      .field("serviceRating", String(body.serviceRating))
+      .field("miscRating", String(body.miscRating))
+      .field("reviewText", body.reviewText)
+      .attach("images", Buffer.from("fake-bytes"), "photo.png");
+
+    expect(res.status).toBe(201);
+    expect(uploadImageMock).toHaveBeenCalledWith(expect.any(Buffer));
+    expect(prismaMock.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          images: { create: [{ imageUrl: "https://bucket.s3.region.amazonaws.com/dsr2p/uuid.jpg" }] },
+        }),
+      })
+    );
   });
 
   it("returns 404 for a restaurant that doesn't exist", async () => {
@@ -90,6 +121,94 @@ describe("POST /reviews", () => {
 
     expect(res.status).toBe(400);
     expect(prismaMock.review.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /reviews/:id", () => {
+  const app = createApp();
+  const review = { id: 1, userId, status: "Approved" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.review.findUnique.mockResolvedValue(review);
+  });
+
+  it("requires authentication", async () => {
+    const res = await request(app).put("/reviews/1").send({ reviewText: "Edited" });
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("updates own review and resets status to Pending", async () => {
+    prismaMock.review.update.mockResolvedValue({ ...review, reviewText: "Edited", status: "Pending" });
+
+    const res = await request(app)
+      .put("/reviews/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reviewText: "Edited" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("Pending");
+    expect(prismaMock.review.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { reviewText: "Edited", status: "Pending" },
+      include: { images: true },
+    });
+  });
+
+  it("appends newly uploaded images without touching existing ones", async () => {
+    uploadImageMock.mockResolvedValue("https://bucket.s3.region.amazonaws.com/dsr2p/uuid.jpg");
+    prismaMock.review.update.mockResolvedValue({ ...review, status: "Pending" });
+
+    const res = await request(app)
+      .put("/reviews/1")
+      .set("Authorization", `Bearer ${token}`)
+      .attach("images", Buffer.from("fake-bytes"), "photo.png");
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.review.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {
+        status: "Pending",
+        images: { create: [{ imageUrl: "https://bucket.s3.region.amazonaws.com/dsr2p/uuid.jpg" }] },
+      },
+      include: { images: true },
+    });
+  });
+
+  it("returns 403 when editing someone else's review", async () => {
+    prismaMock.review.findUnique.mockResolvedValue({ ...review, userId: "someone-else" });
+
+    const res = await request(app)
+      .put("/reviews/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reviewText: "Edited" });
+
+    expect(res.status).toBe(403);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a review that doesn't exist", async () => {
+    prismaMock.review.findUnique.mockResolvedValue(null);
+
+    const res = await request(app)
+      .put("/reviews/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reviewText: "Edited" });
+
+    expect(res.status).toBe(404);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a blank reviewText", async () => {
+    const res = await request(app)
+      .put("/reviews/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reviewText: "   " });
+
+    expect(res.status).toBe(400);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
   });
 });
 
