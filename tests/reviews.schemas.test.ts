@@ -4,6 +4,7 @@ import {
   createResponseSchema,
   createReviewSchema,
   reviewIdParamSchema,
+  updateReviewSchema,
 } from "../src/modules/reviews/reviews.schemas";
 
 const valid = {
@@ -63,6 +64,32 @@ describe("createReviewSchema", () => {
   it("rejects a non-uuid restaurantId", () => {
     const result = createReviewSchema.safeParse({ ...valid, restaurantId: "not-a-uuid" });
     expect(result.success).toBe(false);
+  });
+
+  it("coerces ratings from multipart string fields", () => {
+    const parsed = createReviewSchema.parse({ ...valid, foodQualityRating: "5" });
+    expect(parsed.foodQualityRating).toBe(5);
+  });
+});
+
+describe("updateReviewSchema", () => {
+  it("accepts a single field update", () => {
+    expect(updateReviewSchema.parse({ reviewText: "Updated text" })).toEqual({ reviewText: "Updated text" });
+  });
+
+  it("accepts an empty body (images-only edit)", () => {
+    expect(updateReviewSchema.parse({})).toEqual({});
+  });
+
+  it.each(["foodQualityRating", "serviceRating", "miscRating"] as const)(
+    "rejects %s of 0 when provided",
+    (field) => {
+      expect(updateReviewSchema.safeParse({ [field]: 0 }).success).toBe(false);
+    }
+  );
+
+  it("rejects a blank reviewText", () => {
+    expect(updateReviewSchema.safeParse({ reviewText: "   " }).success).toBe(false);
   });
 });
 

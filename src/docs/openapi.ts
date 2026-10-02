@@ -182,6 +182,16 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
         },
       },
+      ReviewImage: {
+        type: "object",
+        required: ["id", "reviewId", "imageUrl", "createdAt"],
+        properties: {
+          id: { type: "integer" },
+          reviewId: { type: "integer" },
+          imageUrl: { type: "string", format: "uri" },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
       Review: {
         type: "object",
         required: [
@@ -197,6 +207,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           "createdAt",
           "comments",
           "response",
+          "images",
         ],
         properties: {
           id: { type: "integer" },
@@ -213,10 +224,12 @@ export const openApiSpec: OpenAPIV3.Document = {
           createdAt: { type: "string", format: "date-time" },
           comments: { type: "array", items: { $ref: "#/components/schemas/Comment" } },
           response: { allOf: [{ $ref: "#/components/schemas/ReviewResponse" }], nullable: true },
+          images: { type: "array", items: { $ref: "#/components/schemas/ReviewImage" } },
         },
       },
       CreateReviewInput: {
         type: "object",
+        description: "multipart/form-data: fields below plus up to 5 \"images\" files",
         required: ["restaurantId", "foodQualityRating", "serviceRating", "miscRating", "reviewText"],
         properties: {
           restaurantId: { type: "string", format: "uuid" },
@@ -226,6 +239,20 @@ export const openApiSpec: OpenAPIV3.Document = {
           miscRating: { type: "integer", minimum: 1, maximum: 5 },
           reviewText: { type: "string", minLength: 1 },
           language: { $ref: "#/components/schemas/Language" },
+          images: { type: "array", items: { type: "string", format: "binary" }, maxItems: 5 },
+        },
+      },
+      UpdateReviewInput: {
+        type: "object",
+        description: "multipart/form-data: any field below, plus up to 5 \"images\" files to append. Re-submitting resets status to Pending.",
+        properties: {
+          itemId: { type: "integer", description: "Must belong to the review's restaurant" },
+          foodQualityRating: { type: "integer", minimum: 1, maximum: 5 },
+          serviceRating: { type: "integer", minimum: 1, maximum: 5 },
+          miscRating: { type: "integer", minimum: 1, maximum: 5 },
+          reviewText: { type: "string", minLength: 1 },
+          language: { $ref: "#/components/schemas/Language" },
+          images: { type: "array", items: { type: "string", format: "binary" }, maxItems: 5 },
         },
       },
       CreateCommentInput: {
@@ -625,7 +652,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
-          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateReviewInput" } } },
+          content: { "multipart/form-data": { schema: { $ref: "#/components/schemas/CreateReviewInput" } } },
         },
         responses: {
           "201": {
@@ -638,6 +665,32 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "404": errorResponse("Restaurant not found"),
+        },
+      },
+    },
+    "/reviews/{id}": {
+      put: {
+        tags: ["Reviews"],
+        summary: "Edit your own review",
+        description: "Owner-only. Re-submitting resets status to Pending for re-moderation. New images are appended to any already on the review.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "multipart/form-data": { schema: { $ref: "#/components/schemas/UpdateReviewInput" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Review" } } },
+          },
+          "400": {
+            description: "Validation failed, or malformed id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not your review"),
+          "404": errorResponse("Review not found"),
         },
       },
     },

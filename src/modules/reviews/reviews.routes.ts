@@ -1,16 +1,31 @@
 import { Router } from "express";
 import { asyncHandler } from "../../lib/asyncHandler";
 import { requireAdmin, requireAuth } from "../../middleware/auth";
+import { uploadImages } from "../../middleware/upload";
 import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../lib/apiError";
-import { createCommentSchema, createResponseSchema, createReviewSchema, reviewIdParamSchema } from "./reviews.schemas";
+import { uploadImage } from "../../lib/imageUpload";
+import {
+  createCommentSchema,
+  createResponseSchema,
+  createReviewSchema,
+  reviewIdParamSchema,
+  updateReviewSchema,
+} from "./reviews.schemas";
 
 export const reviewsRouter = Router();
 
-// [DSR2P]-17 — POST /reviews submit(). Always starts Pending; moderation approves/rejects it.
+// [DSR2P]-21 — resize/compress/upload each attached photo, in parallel.
+async function uploadReviewImages(files: Express.Multer.File[] | undefined) {
+  return Promise.all((files ?? []).map((file) => uploadImage(file.buffer)));
+}
+
+// [DSR2P]-17/21 — POST /reviews submit(), multipart with optional "images" files.
+// Always starts Pending; moderation approves/rejects it.
 reviewsRouter.post(
   "/",
   requireAuth,
+  uploadImages,
   asyncHandler(async (req, res) => {
     const input = createReviewSchema.parse(req.body);
 
@@ -24,10 +39,45 @@ reviewsRouter.post(
       if (!item) throw ApiError.badRequest("itemId does not belong to this restaurant");
     }
 
+    const imageUrls = await uploadReviewImages(req.files as Express.Multer.File[]);
     const review = await prisma.review.create({
-      data: { ...input, userId: req.user!.sub },
+      data: {
+        ...input,
+        userId: req.user!.sub,
+        images: { create: imageUrls.map((imageUrl) => ({ imageUrl })) },
+      },
+      include: { images: true },
     });
     res.status(201).json(review);
+  })
+);
+
+// [DSR2P]-21 — PUT /reviews/:id edit(), own review only. multipart with optional
+// "images" files, appended to any already on the review. Re-submitting resets
+// status to Pending for re-moderation.
+reviewsRouter.put(
+  "/:id",
+  requireAuth,
+  uploadImages,
+  asyncHandler(async (req, res) => {
+    const { id } = reviewIdParamSchema.parse(req.params);
+    const input = updateReviewSchema.parse(req.body);
+
+    const review = await prisma.review.findUnique({ where: { id } });
+    if (!review) throw ApiError.notFound("Review not found");
+    if (review.userId !== req.user!.sub) throw ApiError.forbidden();
+
+    const imageUrls = await uploadReviewImages(req.files as Express.Multer.File[]);
+    const updated = await prisma.review.update({
+      where: { id },
+      data: {
+        ...input,
+        status: "Pending",
+        ...(imageUrls.length > 0 && { images: { create: imageUrls.map((imageUrl) => ({ imageUrl })) } }),
+      },
+      include: { images: true },
+    });
+    res.status(200).json(updated);
   })
 );
 
