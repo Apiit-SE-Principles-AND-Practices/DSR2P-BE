@@ -34,9 +34,9 @@ describe("GET /admin/moderation/queue", () => {
     expect(prismaMock.review.findMany).not.toHaveBeenCalled();
   });
 
-  it("returns Pending reviews and comments, oldest first, for an Admin", async () => {
+  it("returns Pending-or-reported reviews and comments, oldest first, for an Admin", async () => {
     const reviews = [{ id: 1, status: "Pending" }];
-    const comments = [{ id: 2, status: "Pending" }];
+    const comments = [{ id: 2, status: "Approved", reportCount: 3 }];
     prismaMock.review.findMany.mockResolvedValue(reviews);
     prismaMock.comment.findMany.mockResolvedValue(comments);
 
@@ -44,13 +44,14 @@ describe("GET /admin/moderation/queue", () => {
       .get("/admin/moderation/queue")
       .set("Authorization", `Bearer ${adminToken}`);
 
+    const expectedWhere = { OR: [{ status: "Pending" }, { reportCount: { gt: 0 } }] };
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ reviews, comments });
     expect(prismaMock.review.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { status: "Pending" }, orderBy: { createdAt: "asc" } })
+      expect.objectContaining({ where: expectedWhere, orderBy: { createdAt: "asc" } })
     );
     expect(prismaMock.comment.findMany).toHaveBeenCalledWith({
-      where: { status: "Pending" },
+      where: expectedWhere,
       orderBy: { createdAt: "asc" },
     });
   });

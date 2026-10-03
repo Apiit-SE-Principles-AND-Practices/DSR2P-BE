@@ -169,6 +169,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           commentText: { type: "string" },
           status: { $ref: "#/components/schemas/ModerationStatus" },
           rejectionReason: { type: "string", nullable: true },
+          reportCount: { type: "integer", description: "Reported but not yet re-moderated if > 0" },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -221,6 +222,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           language: { $ref: "#/components/schemas/Language" },
           status: { $ref: "#/components/schemas/ModerationStatus" },
           rejectionReason: { type: "string", nullable: true },
+          reportCount: { type: "integer", description: "Reported but not yet re-moderated if > 0" },
           createdAt: { type: "string", format: "date-time" },
           comments: { type: "array", items: { $ref: "#/components/schemas/Comment" } },
           response: { allOf: [{ $ref: "#/components/schemas/ReviewResponse" }], nullable: true },
@@ -788,6 +790,42 @@ export const openApiSpec: OpenAPIV3.Document = {
           "403": errorResponse("Not an Admin"),
           "404": errorResponse("Review not found"),
           "409": errorResponse("This review already has a response"),
+        },
+      },
+    },
+    "/reviews/{id}/report": {
+      post: {
+        tags: ["Reviews"],
+        summary: "Report a review",
+        description: "Bumps reportCount, surfacing the review in the moderation queue even if already Approved.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Review" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "404": errorResponse("Review not found"),
+        },
+      },
+    },
+    "/comments/{id}/report": {
+      post: {
+        tags: ["Reviews"],
+        summary: "Report a comment",
+        description: "Bumps reportCount, surfacing the comment in the moderation queue even if already Approved.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Comment" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "404": errorResponse("Comment not found"),
         },
       },
     },

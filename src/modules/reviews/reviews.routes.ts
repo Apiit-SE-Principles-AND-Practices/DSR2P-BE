@@ -121,6 +121,21 @@ reviewsRouter.post(
   })
 );
 
+// [DSR2P]-46 — POST /reviews/:id/report. Bumps reportCount so the review surfaces
+// in the moderation queue even if already Approved.
+reviewsRouter.post(
+  "/:id/report",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { id } = reviewIdParamSchema.parse(req.params);
+    const review = await prisma.review.update({
+      where: { id },
+      data: { reportCount: { increment: 1 } },
+    });
+    res.status(200).json(review);
+  })
+);
+
 // [DSR2P]-33 — PATCH /admin/reviews/:id/approve
 adminReviewsRouter.patch(
   "/:id/approve",

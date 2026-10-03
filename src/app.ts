@@ -7,7 +7,7 @@ import { openApiSpec } from "./docs/openapi";
 import { attachUser } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/auth.routes";
-import { adminCommentsRouter } from "./modules/comments/comments.routes";
+import { adminCommentsRouter, commentsRouter } from "./modules/comments/comments.routes";
 import { adminDashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { healthRouter } from "./modules/health/health.routes";
 import { moderationRouter } from "./modules/moderation/moderation.routes";
@@ -33,6 +33,7 @@ export function createApp() {
   app.use("/admin/restaurants", adminRestaurantsRouter);
   app.use("/reviews", reviewsRouter);
   app.use("/admin/moderation", moderationRouter);
+  app.use("/comments", commentsRouter);
   app.use("/admin/comments", adminCommentsRouter);
   app.use("/admin/reviews", adminReviewsRouter);
   app.use("/admin/dashboard", adminDashboardRouter);

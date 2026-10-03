@@ -130,6 +130,7 @@ model Review {
   language          Language         @default(en)
   status            ModerationStatus @default(Pending)
   rejectionReason   String?          @map("rejection_reason")
+  reportCount       Int              @default(0) @map("report_count")
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
   comments Comment[]
@@ -163,6 +164,7 @@ model Comment {
   commentText     String           @map("comment_text")
   status          ModerationStatus @default(Pending)
   rejectionReason String?          @map("rejection_reason")
+  reportCount     Int              @default(0) @map("report_count")
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([reviewId, status], map: "idx_comments_review_status")
