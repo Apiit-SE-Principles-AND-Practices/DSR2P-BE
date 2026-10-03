@@ -48,3 +48,14 @@ usersRouter.get(
     res.status(200).json(comments);
   })
 );
+
+// [DSR2P]-44 — DELETE /users/me — account deletion. Reviews/comments/likes cascade
+// via onDelete: Cascade (schema.prisma), so one delete is enough.
+usersRouter.delete(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await prisma.user.delete({ where: { id: req.user!.sub } });
+    res.status(204).send();
+  })
+);

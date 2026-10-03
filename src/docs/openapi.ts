@@ -513,6 +513,17 @@ export const openApiSpec: OpenAPIV3.Document = {
           "404": errorResponse("User no longer exists"),
         },
       },
+      delete: {
+        tags: ["Users"],
+        summary: "Delete the logged-in user's account",
+        description: "Cascades to their reviews, comments, likes and responses (schema onDelete: Cascade).",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "204": { description: "Deleted" },
+          "401": errorResponse("Not logged in"),
+          "404": errorResponse("User no longer exists"),
+        },
+      },
     },
     "/users/me/reviews": {
       get: {
