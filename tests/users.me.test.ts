@@ -2,7 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
-  user: { update: vi.fn() },
+  user: { update: vi.fn(), delete: vi.fn() },
   review: { findMany: vi.fn() },
   comment: { findMany: vi.fn() },
 }));
@@ -223,5 +223,40 @@ describe("GET /users/me/comments", () => {
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
+  });
+});
+
+describe("DELETE /users/me", () => {
+  const app = createApp();
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).delete("/users/me");
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.user.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes the account identified by the token", async () => {
+    prismaMock.user.delete.mockResolvedValue(storedUser());
+
+    const res = await request(app).delete("/users/me").set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(204);
+    expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { id: userId } });
+  });
+
+  it("returns 404 if the account behind the token no longer exists", async () => {
+    prismaMock.user.delete.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: Prisma.prismaVersion.client,
+      })
+    );
+
+    const res = await request(app).delete("/users/me").set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(404);
   });
 });
