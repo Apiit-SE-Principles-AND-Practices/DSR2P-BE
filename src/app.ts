@@ -8,6 +8,7 @@ import { attachUser } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/auth.routes";
 import { adminCommentsRouter } from "./modules/comments/comments.routes";
+import { adminDashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { healthRouter } from "./modules/health/health.routes";
 import { moderationRouter } from "./modules/moderation/moderation.routes";
 import { adminRestaurantsRouter, restaurantsRouter } from "./modules/restaurants/restaurants.routes";
@@ -34,6 +35,7 @@ export function createApp() {
   app.use("/admin/moderation", moderationRouter);
   app.use("/admin/comments", adminCommentsRouter);
   app.use("/admin/reviews", adminReviewsRouter);
+  app.use("/admin/dashboard", adminDashboardRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
