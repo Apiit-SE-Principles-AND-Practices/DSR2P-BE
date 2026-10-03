@@ -269,6 +269,13 @@ export const openApiSpec: OpenAPIV3.Document = {
           responseText: { type: "string", minLength: 1 },
         },
       },
+      RejectCommentInput: {
+        type: "object",
+        required: ["reason"],
+        properties: {
+          reason: { type: "string", minLength: 1 },
+        },
+      },
       RejectReviewInput: {
         type: "object",
         required: ["reason"],
@@ -914,6 +921,49 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "403": errorResponse("Not an Admin"),
+        },
+      },
+    },
+    "/admin/comments/{id}/approve": {
+      patch: {
+        tags: ["Admin"],
+        summary: "Approve a comment",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Comment" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Comment not found"),
+        },
+      },
+    },
+    "/admin/comments/{id}/reject": {
+      patch: {
+        tags: ["Admin"],
+        summary: "Reject a comment, with a reason",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/RejectCommentInput" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Comment" } } },
+          },
+          "400": {
+            description: "Validation failed (blank reason), or malformed id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Comment not found"),
         },
       },
     },
