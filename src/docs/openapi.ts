@@ -914,6 +914,9 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "403": errorResponse("Not an Admin"),
+        },
+      },
+    },
     "/admin/reviews/{id}/approve": {
       patch: {
         tags: ["Admin"],
