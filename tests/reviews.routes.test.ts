@@ -358,3 +358,116 @@ describe("POST /reviews/:id/response", () => {
     expect(prismaMock.response.create).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /admin/reviews/:id/approve", () => {
+  const app = createApp();
+  const adminToken = signToken({ sub: "admin-id", role: "Admin" });
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).patch("/admin/reviews/1/approve");
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks a Customer", async () => {
+    const res = await request(app).patch("/admin/reviews/1/approve").set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("approves for an Admin, clearing any rejectionReason", async () => {
+    prismaMock.review.update.mockResolvedValue({ id: 1, status: "Approved", rejectionReason: null });
+
+    const res = await request(app).patch("/admin/reviews/1/approve").set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("Approved");
+    expect(prismaMock.review.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: "Approved", rejectionReason: null },
+    });
+  });
+
+  it("returns 404 for a review that doesn't exist", async () => {
+    prismaMock.review.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: Prisma.prismaVersion.client,
+      })
+    );
+
+    const res = await request(app).patch("/admin/reviews/1/approve").set("Authorization", `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /admin/reviews/:id/reject", () => {
+  const app = createApp();
+  const adminToken = signToken({ sub: "admin-id", role: "Admin" });
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).patch("/admin/reviews/1/reject").send({ reason: "Spam" });
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks a Customer", async () => {
+    const res = await request(app)
+      .patch("/admin/reviews/1/reject")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "Spam" });
+
+    expect(res.status).toBe(403);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects for an Admin, storing the reason", async () => {
+    prismaMock.review.update.mockResolvedValue({ id: 1, status: "Rejected", rejectionReason: "Spam" });
+
+    const res = await request(app)
+      .patch("/admin/reviews/1/reject")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "Spam" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.rejectionReason).toBe("Spam");
+    expect(prismaMock.review.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { status: "Rejected", rejectionReason: "Spam" },
+    });
+  });
+
+  it("returns 400 for a blank reason", async () => {
+    const res = await request(app)
+      .patch("/admin/reviews/1/reject")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "   " });
+
+    expect(res.status).toBe(400);
+    expect(prismaMock.review.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 for a review that doesn't exist", async () => {
+    prismaMock.review.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: Prisma.prismaVersion.client,
+      })
+    );
+
+    const res = await request(app)
+      .patch("/admin/reviews/1/reject")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "Spam" });
+
+    expect(res.status).toBe(404);
+  });
+});

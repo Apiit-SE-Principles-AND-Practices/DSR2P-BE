@@ -269,6 +269,13 @@ export const openApiSpec: OpenAPIV3.Document = {
           responseText: { type: "string", minLength: 1 },
         },
       },
+      RejectReviewInput: {
+        type: "object",
+        required: ["reason"],
+        properties: {
+          reason: { type: "string", minLength: 1 },
+        },
+      },
       CreateMenuItemInput: {
         type: "object",
         description: "multipart/form-data: fields below plus an optional \"image\" file",
@@ -624,7 +631,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           {
             name: "status",
             in: "query",
-            description: "Defaults to Approved",
+            description: "Defaults to Approved. Only an Admin's token may request a different status.",
             schema: { $ref: "#/components/schemas/ModerationStatus" },
           },
           {
@@ -907,6 +914,46 @@ export const openApiSpec: OpenAPIV3.Document = {
           },
           "401": errorResponse("Not logged in"),
           "403": errorResponse("Not an Admin"),
+    "/admin/reviews/{id}/approve": {
+      patch: {
+        tags: ["Admin"],
+        summary: "Approve a review",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Review" } } },
+          },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Review not found"),
+        },
+      },
+    },
+    "/admin/reviews/{id}/reject": {
+      patch: {
+        tags: ["Admin"],
+        summary: "Reject a review, with a reason",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/RejectReviewInput" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Review" } } },
+          },
+          "400": {
+            description: "Validation failed (blank reason), or malformed id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Review not found"),
         },
       },
     },

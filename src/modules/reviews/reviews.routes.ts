@@ -9,11 +9,16 @@ import {
   createCommentSchema,
   createResponseSchema,
   createReviewSchema,
+  rejectReviewSchema,
   reviewIdParamSchema,
   updateReviewSchema,
 } from "./reviews.schemas";
 
 export const reviewsRouter = Router();
+
+// Admin-only moderation, mounted at /admin/reviews.
+export const adminReviewsRouter = Router();
+adminReviewsRouter.use(requireAdmin);
 
 // [DSR2P]-21 — resize/compress/upload each attached photo, in parallel.
 async function uploadReviewImages(files: Express.Multer.File[] | undefined) {
@@ -113,5 +118,32 @@ reviewsRouter.post(
 
     const response = await prisma.response.create({ data: { reviewId: id, responseText } });
     res.status(201).json(response);
+  })
+);
+
+// [DSR2P]-33 — PATCH /admin/reviews/:id/approve
+adminReviewsRouter.patch(
+  "/:id/approve",
+  asyncHandler(async (req, res) => {
+    const { id } = reviewIdParamSchema.parse(req.params);
+    const review = await prisma.review.update({
+      where: { id },
+      data: { status: "Approved", rejectionReason: null },
+    });
+    res.status(200).json(review);
+  })
+);
+
+// [DSR2P]-33 — PATCH /admin/reviews/:id/reject
+adminReviewsRouter.patch(
+  "/:id/reject",
+  asyncHandler(async (req, res) => {
+    const { id } = reviewIdParamSchema.parse(req.params);
+    const { reason } = rejectReviewSchema.parse(req.body);
+    const review = await prisma.review.update({
+      where: { id },
+      data: { status: "Rejected", rejectionReason: reason },
+    });
+    res.status(200).json(review);
   })
 );

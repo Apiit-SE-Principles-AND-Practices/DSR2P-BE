@@ -124,6 +124,8 @@ restaurantsRouter.get(
 );
 
 // [DSR2P]-16 — GET /restaurants/:id/reviews?status=&sort= with nested comments/response.
+// [DSR2P]-33 audit — this route is public (no requireAuth), so only an Admin may ask for
+// a status other than Approved; anyone else's status= is ignored, never trusted from the client.
 // No review_likes table yet (schema.prisma is introspected from the live DB and doesn't
 // have one), so likes aren't nested here — add once that table exists.
 restaurantsRouter.get(
@@ -133,8 +135,9 @@ restaurantsRouter.get(
     const { status, sort } = listReviewsQuerySchema.parse(req.query);
     const restaurant = await prisma.restaurant.findUnique({ where: { id } });
     if (!restaurant) throw ApiError.notFound("Restaurant not found");
+    const effectiveStatus = req.user?.role === "Admin" ? status : "Approved";
     const reviews = await prisma.review.findMany({
-      where: { restaurantId: id, status },
+      where: { restaurantId: id, status: effectiveStatus },
       orderBy: { createdAt: sort === "oldest" ? "asc" : "desc" },
       include: { comments: true, response: true },
     });
