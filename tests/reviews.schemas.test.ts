@@ -3,6 +3,7 @@ import {
   createCommentSchema,
   createResponseSchema,
   createReviewSchema,
+  rejectReviewSchema,
   reviewIdParamSchema,
   updateReviewSchema,
 } from "../src/modules/reviews/reviews.schemas";
@@ -132,5 +133,19 @@ describe("createResponseSchema", () => {
 
   it("rejects a missing responseText", () => {
     expect(createResponseSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("rejectReviewSchema", () => {
+  it("accepts a non-blank reason", () => {
+    expect(rejectReviewSchema.parse({ reason: "Spam" })).toEqual({ reason: "Spam" });
+  });
+
+  it("rejects a blank reason", () => {
+    expect(rejectReviewSchema.safeParse({ reason: "   " }).success).toBe(false);
+  });
+
+  it("rejects a missing reason", () => {
+    expect(rejectReviewSchema.safeParse({}).success).toBe(false);
   });
 });

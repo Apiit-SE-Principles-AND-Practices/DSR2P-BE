@@ -353,17 +353,38 @@ describe("restaurants", () => {
       });
     });
 
-    it("filters by status and sorts oldest first", async () => {
+    it("sorts oldest first", async () => {
       prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
       prismaMock.review.findMany.mockResolvedValue([]);
 
-      await request(app).get(`/restaurants/${id}/reviews?status=Pending&sort=oldest`);
+      await request(app).get(`/restaurants/${id}/reviews?sort=oldest`);
 
       expect(prismaMock.review.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { restaurantId: id, status: "Pending" },
-          orderBy: { createdAt: "asc" },
-        })
+        expect.objectContaining({ orderBy: { createdAt: "asc" } })
+      );
+    });
+
+    it("[DSR2P-33 audit] ignores a non-Admin's status= — only Approved reviews are public", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.review.findMany.mockResolvedValue([]);
+
+      await request(app).get(`/restaurants/${id}/reviews?status=Pending`);
+
+      expect(prismaMock.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { restaurantId: id, status: "Approved" } })
+      );
+    });
+
+    it("[DSR2P-33 audit] honors status= for an Admin's token", async () => {
+      prismaMock.restaurant.findUnique.mockResolvedValue(restaurant);
+      prismaMock.review.findMany.mockResolvedValue([]);
+
+      await request(app)
+        .get(`/restaurants/${id}/reviews?status=Pending`)
+        .set("Authorization", `Bearer ${adminToken}`);
+
+      expect(prismaMock.review.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { restaurantId: id, status: "Pending" } })
       );
     });
 

@@ -48,6 +48,11 @@ export const createResponseSchema = z.object({
   responseText: z.string().trim().min(1, "Response text is required"),
 });
 
+// [DSR2P]-33 — PATCH /admin/reviews/:id/reject
+export const rejectReviewSchema = z.object({
+  reason: z.string().trim().min(1, "Rejection reason is required"),
+});
+
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 export type UpdateReviewInput = z.infer<typeof updateReviewSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
