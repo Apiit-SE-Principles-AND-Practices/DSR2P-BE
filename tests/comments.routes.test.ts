@@ -130,3 +130,42 @@ describe("PATCH /admin/comments/:id/reject", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("POST /comments/:id/report", () => {
+  const app = createApp();
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("requires authentication", async () => {
+    const res = await request(app).post("/comments/1/report");
+
+    expect(res.status).toBe(401);
+    expect(prismaMock.comment.update).not.toHaveBeenCalled();
+  });
+
+  it("bumps reportCount for a logged-in user", async () => {
+    prismaMock.comment.update.mockResolvedValue({ id: 1, reportCount: 1 });
+
+    const res = await request(app).post("/comments/1/report").set("Authorization", `Bearer ${customerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.reportCount).toBe(1);
+    expect(prismaMock.comment.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { reportCount: { increment: 1 } },
+    });
+  });
+
+  it("returns 404 for a comment that doesn't exist", async () => {
+    prismaMock.comment.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: Prisma.prismaVersion.client,
+      })
+    );
+
+    const res = await request(app).post("/comments/1/report").set("Authorization", `Bearer ${customerToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
