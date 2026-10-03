@@ -283,6 +283,26 @@ export const openApiSpec: OpenAPIV3.Document = {
           reason: { type: "string", minLength: 1 },
         },
       },
+      ModerationStatusCounts: {
+        type: "object",
+        required: ["total", "pending", "approved", "rejected"],
+        properties: {
+          total: { type: "integer" },
+          pending: { type: "integer" },
+          approved: { type: "integer" },
+          rejected: { type: "integer" },
+        },
+      },
+      DashboardStats: {
+        type: "object",
+        required: ["restaurants", "users", "reviews", "comments"],
+        properties: {
+          restaurants: { type: "integer" },
+          users: { type: "integer" },
+          reviews: { $ref: "#/components/schemas/ModerationStatusCounts" },
+          comments: { $ref: "#/components/schemas/ModerationStatusCounts" },
+        },
+      },
       CreateMenuItemInput: {
         type: "object",
         description: "multipart/form-data: fields below plus an optional \"image\" file",
@@ -1007,6 +1027,25 @@ export const openApiSpec: OpenAPIV3.Document = {
           "401": errorResponse("Not logged in"),
           "403": errorResponse("Not an Admin"),
           "404": errorResponse("Review not found"),
+        },
+      },
+    },
+    "/admin/dashboard/stats": {
+      get: {
+        tags: ["Admin"],
+        summary: "Get dashboard stats",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Restaurant/user counts, plus reviews and comments broken down by moderation status",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/DashboardStats" },
+              },
+            },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
         },
       },
     },
