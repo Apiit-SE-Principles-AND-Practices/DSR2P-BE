@@ -2,7 +2,6 @@ import { z } from "zod";
 
 // Column limits from the restaurants table.
 export const NAME_MAX = 150;
-export const CATEGORY_MAX = 50;
 export const ADDRESS_MAX = 255;
 export const IMAGE_URL_MAX = 255;
 
@@ -23,11 +22,9 @@ const name = z
   .trim()
   .min(1, "Name is required")
   .max(NAME_MAX, `Name must be at most ${NAME_MAX} characters`);
-const category = z
-  .string()
-  .trim()
-  .min(1, "Category is required")
-  .max(CATEGORY_MAX, `Category must be at most ${CATEGORY_MAX} characters`);
+const categoryIds = z
+  .array(z.coerce.number().int().positive())
+  .min(1, "At least one category is required");
 const address = z
   .string()
   .trim()
@@ -41,14 +38,15 @@ const imageUrl = z
   .optional();
 
 // [DSR2P]-29-BE1 — POST /admin/restaurants
-export const createRestaurantSchema = z.object({ name, city: cityEnum, category, address, imageUrl });
+export const createRestaurantSchema = z.object({ name, city: cityEnum, categoryIds, address, imageUrl });
 
-// PUT /admin/restaurants/:id — partial, but must change something.
+// PUT /admin/restaurants/:id — partial, but must change something. categoryIds,
+// when given, replaces the full set rather than merging with the existing one.
 export const updateRestaurantSchema = z
   .object({
     name: name.optional(),
     city: cityEnum.optional(),
-    category: category.optional(),
+    categoryIds: categoryIds.optional(),
     address: address.optional(),
     imageUrl,
   })
@@ -71,10 +69,11 @@ export const listRestaurantsQuerySchema = z.object({
     .default(DEFAULT_PAGE_SIZE),
 });
 
-// [DSR2P]-11 — GET /restaurants/search?category=&diet=&spice=&price=&city=&page=&pageSize=
+// [DSR2P]-11 — GET /restaurants/search?categoryId=&itemCategoryId=&diet=&spice=&price=&city=&page=&pageSize=
 export const searchRestaurantsQuerySchema = z.object({
   city: cityEnum.optional(),
-  category: category.optional(),
+  categoryId: z.coerce.number().int().positive().optional(),
+  itemCategoryId: z.coerce.number().int().positive().optional(),
   diet: dietEnum.optional(),
   spice: spiceEnum.optional(),
   price: priceBandEnum.optional(),

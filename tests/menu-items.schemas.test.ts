@@ -7,10 +7,11 @@ import {
 
 describe("createMenuItemSchema", () => {
   it("accepts a minimal valid item, defaulting booleans and spiceLevel", () => {
-    const parsed = createMenuItemSchema.parse({ name: "Kottu", priceLkr: "800" });
+    const parsed = createMenuItemSchema.parse({ name: "Kottu", priceLkr: "800", categoryId: "1" });
     expect(parsed).toEqual({
       name: "Kottu",
       priceLkr: 800,
+      categoryId: 1,
       isVegetarian: false,
       isVegan: false,
       isHalal: false,
@@ -19,26 +20,36 @@ describe("createMenuItemSchema", () => {
   });
 
   it("coerces priceLkr from a multipart string", () => {
-    expect(createMenuItemSchema.parse({ name: "Kottu", priceLkr: "0" }).priceLkr).toBe(0);
+    expect(createMenuItemSchema.parse({ name: "Kottu", priceLkr: "0", categoryId: "1" }).priceLkr).toBe(0);
   });
 
   it("rejects a negative price", () => {
-    const result = createMenuItemSchema.safeParse({ name: "Kottu", priceLkr: "-1" });
+    const result = createMenuItemSchema.safeParse({ name: "Kottu", priceLkr: "-1", categoryId: "1" });
     expect(result.success).toBe(false);
   });
 
   it("rejects a blank name", () => {
-    const result = createMenuItemSchema.safeParse({ name: "  ", priceLkr: "100" });
+    const result = createMenuItemSchema.safeParse({ name: "  ", priceLkr: "100", categoryId: "1" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing categoryId", () => {
+    const result = createMenuItemSchema.safeParse({ name: "Kottu", priceLkr: "100" });
     expect(result.success).toBe(false);
   });
 
   it.each(["true", "false"])("parses the string boolean %s correctly, not via truthiness", (value) => {
-    const parsed = createMenuItemSchema.parse({ name: "Kottu", priceLkr: "100", isVegan: value });
+    const parsed = createMenuItemSchema.parse({ name: "Kottu", priceLkr: "100", categoryId: "1", isVegan: value });
     expect(parsed.isVegan).toBe(value === "true");
   });
 
   it("rejects an unsupported spiceLevel", () => {
-    const result = createMenuItemSchema.safeParse({ name: "Kottu", priceLkr: "100", spiceLevel: "Nuclear" });
+    const result = createMenuItemSchema.safeParse({
+      name: "Kottu",
+      priceLkr: "100",
+      categoryId: "1",
+      spiceLevel: "Nuclear",
+    });
     expect(result.success).toBe(false);
   });
 });

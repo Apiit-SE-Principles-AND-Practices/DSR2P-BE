@@ -25,33 +25,43 @@ import type { Prisma } from "@prisma/client";
 // Public reads, mounted at /restaurants.
 export const restaurantsRouter = Router();
 
+const withCategories = { categories: { include: { category: true } } } as const;
+
+// RestaurantCategory join rows -> a flat Category[], the shape callers actually want.
+function flattenCategories<T extends { categories: { category: unknown }[] }>(restaurant: T) {
+  const { categories, ...rest } = restaurant;
+  return { ...rest, categories: categories.map((c) => c.category) };
+}
+
 // [DSR2P]-9 — GET /restaurants?city=&page=&pageSize= — newest first, optionally scoped to a city
 restaurantsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const { city, page, pageSize } = listRestaurantsQuerySchema.parse(req.query);
     const where = city ? { city } : undefined;
-    const [total, data] = await Promise.all([
+    const [total, rows] = await Promise.all([
       prisma.restaurant.count({ where }),
       prisma.restaurant.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: withCategories,
       }),
     ]);
+    const data = rows.map(flattenCategories);
     res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   })
 );
 
-// [DSR2P]-11 — GET /restaurants/search?category=&diet=&spice=&price=&city=&page=&pageSize=
+// [DSR2P]-11 — GET /restaurants/search?categoryId=&itemCategoryId=&diet=&spice=&price=&city=&page=&pageSize=
 restaurantsRouter.get(
   "/search",
   asyncHandler(async (req, res) => {
-    const { city, category, diet, spice, price, sort, page, pageSize } = searchRestaurantsQuerySchema.parse(
-      req.query
-    );
+    const { city, categoryId, itemCategoryId, diet, spice, price, sort, page, pageSize } =
+      searchRestaurantsQuerySchema.parse(req.query);
     const menuItemFilter: Prisma.MenuItemWhereInput = {
+      ...(itemCategoryId && { categoryId: itemCategoryId }),
       ...(diet === "Vegetarian" && { isVegetarian: true }),
       ...(diet === "Vegan" && { isVegan: true }),
       ...(diet === "Halal" && { isHalal: true }),
@@ -60,7 +70,7 @@ restaurantsRouter.get(
     };
     const where: Prisma.RestaurantWhereInput = {
       ...(city && { city }),
-      ...(category && { category }),
+      ...(categoryId && { categories: { some: { categoryId } } }),
       ...(Object.keys(menuItemFilter).length > 0 && { menuItems: { some: menuItemFilter } }),
     };
 
@@ -72,16 +82,17 @@ restaurantsRouter.get(
           orderBy: { createdAt: "desc" },
           skip: (page - 1) * pageSize,
           take: pageSize,
+          include: withCategories,
         }),
       ]);
-      const data = await withRatingAndPriceBand(prisma, rows);
+      const data = await withRatingAndPriceBand(prisma, rows.map(flattenCategories));
       res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
       return;
     }
 
     // Rating/price are computed, not stored, so sorting by them means pulling every
     // match, ranking in memory, then paginating — fine at this dataset's scale.
-    const all = await prisma.restaurant.findMany({ where });
+    const all = await prisma.restaurant.findMany({ where, include: withCategories });
     const ids = all.map((r) => r.id);
     const sortValues =
       sort === "rating" ? await calculateAverageRatingsFor(prisma, ids) : await calculateAveragePricesFor(prisma, ids);
@@ -94,7 +105,7 @@ restaurantsRouter.get(
     });
     const total = all.length;
     const rows = all.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
-    const data = await withRatingAndPriceBand(prisma, rows);
+    const data = await withRatingAndPriceBand(prisma, rows.map(flattenCategories));
     res.status(200).json({ data, page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   })
 );
@@ -104,9 +115,9 @@ restaurantsRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const { id } = idParamSchema.parse(req.params);
-    const restaurant = await prisma.restaurant.findUnique({ where: { id } });
+    const restaurant = await prisma.restaurant.findUnique({ where: { id }, include: withCategories });
     if (!restaurant) throw ApiError.notFound("Restaurant not found");
-    const [data] = await withRatingAndPriceBand(prisma, [restaurant]);
+    const [data] = await withRatingAndPriceBand(prisma, [flattenCategories(restaurant)]);
     res.status(200).json(data);
   })
 );
@@ -153,20 +164,32 @@ adminRestaurantsRouter.use(requireAdmin);
 adminRestaurantsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    const input = createRestaurantSchema.parse(req.body);
-    const restaurant = await prisma.restaurant.create({ data: input });
-    res.status(201).json(restaurant);
+    const { categoryIds, ...input } = createRestaurantSchema.parse(req.body);
+    const restaurant = await prisma.restaurant.create({
+      data: { ...input, categories: { create: categoryIds.map((categoryId) => ({ categoryId })) } },
+      include: withCategories,
+    });
+    res.status(201).json(flattenCategories(restaurant));
   })
 );
 
-// PUT /admin/restaurants/:id
+// PUT /admin/restaurants/:id — categoryIds, when given, replaces the full set.
 adminRestaurantsRouter.put(
   "/:id",
   asyncHandler(async (req, res) => {
     const { id } = idParamSchema.parse(req.params);
-    const input = updateRestaurantSchema.parse(req.body);
-    const restaurant = await prisma.restaurant.update({ where: { id }, data: input });
-    res.status(200).json(restaurant);
+    const { categoryIds, ...input } = updateRestaurantSchema.parse(req.body);
+    const restaurant = await prisma.restaurant.update({
+      where: { id },
+      data: {
+        ...input,
+        ...(categoryIds && {
+          categories: { deleteMany: {}, create: categoryIds.map((categoryId) => ({ categoryId })) },
+        }),
+      },
+      include: withCategories,
+    });
+    res.status(200).json(flattenCategories(restaurant));
   })
 );
 

@@ -32,7 +32,8 @@ describe("POST /admin/restaurants/:id/menu-items", () => {
       .post(`/admin/restaurants/${restaurantId}/menu-items`)
       .set("Authorization", `Bearer ${customerToken}`)
       .field("name", "Kottu")
-      .field("priceLkr", "800");
+      .field("priceLkr", "800")
+      .field("categoryId", "1");
 
     expect(res.status).toBe(403);
     expect(prismaMock.menuItem.create).not.toHaveBeenCalled();
@@ -45,7 +46,8 @@ describe("POST /admin/restaurants/:id/menu-items", () => {
       .post(`/admin/restaurants/${restaurantId}/menu-items`)
       .set("Authorization", `Bearer ${adminToken}`)
       .field("name", "Kottu")
-      .field("priceLkr", "800");
+      .field("priceLkr", "800")
+      .field("categoryId", "1");
 
     expect(res.status).toBe(201);
     expect(uploadImageMock).not.toHaveBeenCalled();
@@ -53,6 +55,7 @@ describe("POST /admin/restaurants/:id/menu-items", () => {
       data: {
         name: "Kottu",
         priceLkr: 800,
+        categoryId: 1,
         isVegetarian: false,
         isVegan: false,
         isHalal: false,
@@ -72,6 +75,7 @@ describe("POST /admin/restaurants/:id/menu-items", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .field("name", "Kottu")
       .field("priceLkr", "800")
+      .field("categoryId", "1")
       .attach("image", Buffer.from("fake-image-bytes"), "photo.png");
 
     expect(res.status).toBe(201);
@@ -90,7 +94,8 @@ describe("POST /admin/restaurants/:id/menu-items", () => {
       .post(`/admin/restaurants/${restaurantId}/menu-items`)
       .set("Authorization", `Bearer ${adminToken}`)
       .field("name", "Kottu")
-      .field("priceLkr", "800");
+      .field("priceLkr", "800")
+      .field("categoryId", "1");
 
     expect(res.status).toBe(404);
     expect(prismaMock.menuItem.create).not.toHaveBeenCalled();

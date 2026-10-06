@@ -14,11 +14,13 @@ const priceLkr = z.coerce.number().min(0, "Price must be at least 0");
 // z.coerce.boolean() would turn the string "false" into true; multipart fields
 // arrive as strings, so compare explicitly instead.
 const bool = z.union([z.boolean(), z.enum(["true", "false"])]).transform((v) => v === true || v === "true");
+const categoryId = z.coerce.number().int().positive();
 
 // [DSR2P]-30 — POST /admin/restaurants/:id/menu-items (multipart: fields + optional image)
 export const createMenuItemSchema = z.object({
   name,
   priceLkr,
+  categoryId,
   isVegetarian: bool.optional().default(false),
   isVegan: bool.optional().default(false),
   isHalal: bool.optional().default(false),
@@ -30,6 +32,7 @@ export const updateMenuItemSchema = z
   .object({
     name: name.optional(),
     priceLkr: priceLkr.optional(),
+    categoryId: categoryId.optional(),
     isVegetarian: bool.optional(),
     isVegan: bool.optional(),
     isHalal: bool.optional(),

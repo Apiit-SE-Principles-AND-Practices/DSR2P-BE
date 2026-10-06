@@ -11,7 +11,7 @@ import {
 const valid = {
   name: "Ceylon Spice House",
   city: "Colombo",
-  category: "Sri Lankan",
+  categoryIds: [1],
   address: "12 Galle Road, Colombo 03",
 };
 
@@ -30,8 +30,13 @@ describe("createRestaurantSchema", () => {
     expect(parsed.name).toBe("Ceylon Spice House");
   });
 
-  it.each(["name", "category", "address"] as const)("rejects a blank %s", (field) => {
+  it.each(["name", "address"] as const)("rejects a blank %s", (field) => {
     const result = createRestaurantSchema.safeParse({ ...valid, [field]: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty categoryIds array", () => {
+    const result = createRestaurantSchema.safeParse({ ...valid, categoryIds: [] });
     expect(result.success).toBe(false);
   });
 
@@ -136,7 +141,8 @@ describe("searchRestaurantsQuerySchema", () => {
   it("accepts all filters together", () => {
     const query = {
       city: "Kandy",
-      category: "Sri Lankan",
+      categoryId: 1,
+      itemCategoryId: 2,
       diet: "Vegan",
       spice: "Hot",
       price: "Moderate",
