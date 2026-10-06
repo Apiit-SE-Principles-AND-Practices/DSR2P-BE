@@ -80,17 +80,38 @@ model Restaurant {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @map("restaurant_id") @db.Uuid
   name      String   @db.VarChar(150)
   city      City
-  category  String   @db.VarChar(50)
   address   String   @db.VarChar(255)
   imageUrl  String?  @map("image_url") @db.VarChar(255)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
-  menuItems MenuItem[]
-  reviews   Review[]
+  menuItems  MenuItem[]
+  reviews    Review[]
+  categories RestaurantCategory[]
 
-  @@index([category], map: "idx_restaurants_category")
   @@index([city], map: "idx_restaurants_city")
   @@map("restaurants")
+}
+
+// [DSR2P]-category-crud — menu/dish categories (Breakfast, Salads, …). A restaurant
+// may carry several (via RestaurantCategory); a menu item carries exactly one.
+model Category {
+  id   Int    @id @default(autoincrement()) @map("category_id")
+  name String @unique @db.VarChar(50)
+
+  restaurants RestaurantCategory[]
+  menuItems   MenuItem[]
+
+  @@map("categories")
+}
+
+model RestaurantCategory {
+  restaurantId String     @map("restaurant_id") @db.Uuid
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  categoryId   Int        @map("category_id")
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([restaurantId, categoryId])
+  @@map("restaurant_categories")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -105,6 +126,8 @@ model MenuItem {
   isHalal      Boolean    @default(false) @map("is_halal")
   spiceLevel   SpiceLevel @default(None) @map("spice_level")
   imageUrl     String?    @map("image_url") @db.VarChar(255)
+  categoryId   Int?       @map("category_id")
+  category     Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   reviews Review[]
 

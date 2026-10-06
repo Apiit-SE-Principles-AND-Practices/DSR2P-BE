@@ -20,6 +20,7 @@ export const openApiSpec: OpenAPIV3.Document = {
     { name: "Health" },
     { name: "Auth", description: "Registration and login" },
     { name: "Users", description: "The logged-in user's profile" },
+    { name: "Categories", description: "Menu/dish categories" },
     { name: "Restaurants", description: "Public restaurant browsing" },
     { name: "Reviews", description: "Submitting and reading reviews" },
     { name: "Admin", description: "Admin-only restaurant management" },
@@ -90,17 +91,35 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
       City: { type: "string", enum: ["Colombo", "Kandy", "Galle"] },
+      Category: {
+        type: "object",
+        required: ["id", "name"],
+        properties: {
+          id: { type: "integer" },
+          name: { type: "string" },
+        },
+      },
+      CreateCategoryInput: {
+        type: "object",
+        required: ["name"],
+        properties: { name: { type: "string", minLength: 1, maxLength: 50 } },
+      },
+      UpdateCategoryInput: {
+        type: "object",
+        required: ["name"],
+        properties: { name: { type: "string", minLength: 1, maxLength: 50 } },
+      },
       Restaurant: {
         type: "object",
-        required: ["id", "name", "city", "category", "address", "createdAt"],
+        required: ["id", "name", "city", "address", "createdAt", "categories"],
         properties: {
           id: { type: "string", format: "uuid" },
           name: { type: "string" },
           city: { $ref: "#/components/schemas/City" },
-          category: { type: "string" },
           address: { type: "string" },
           imageUrl: { type: "string", nullable: true },
           createdAt: { type: "string", format: "date-time" },
+          categories: { type: "array", items: { $ref: "#/components/schemas/Category" } },
         },
       },
       RestaurantPage: {
@@ -156,6 +175,7 @@ export const openApiSpec: OpenAPIV3.Document = {
           isHalal: { type: "boolean" },
           spiceLevel: { $ref: "#/components/schemas/SpiceLevel" },
           imageUrl: { type: "string", nullable: true },
+          categoryId: { type: "integer", nullable: true },
         },
       },
       ModerationStatus: { type: "string", enum: ["Pending", "Approved", "Rejected"] },
@@ -308,10 +328,11 @@ export const openApiSpec: OpenAPIV3.Document = {
       CreateMenuItemInput: {
         type: "object",
         description: "multipart/form-data: fields below plus an optional \"image\" file",
-        required: ["name", "priceLkr"],
+        required: ["name", "priceLkr", "categoryId"],
         properties: {
           name: { type: "string", minLength: 1, maxLength: 150 },
           priceLkr: { type: "number", minimum: 0 },
+          categoryId: { type: "integer" },
           isVegetarian: { type: "boolean", default: false },
           isVegan: { type: "boolean", default: false },
           isHalal: { type: "boolean", default: false },
@@ -325,6 +346,7 @@ export const openApiSpec: OpenAPIV3.Document = {
         properties: {
           name: { type: "string", minLength: 1, maxLength: 150 },
           priceLkr: { type: "number", minimum: 0 },
+          categoryId: { type: "integer" },
           isVegetarian: { type: "boolean" },
           isVegan: { type: "boolean" },
           isHalal: { type: "boolean" },
@@ -334,23 +356,23 @@ export const openApiSpec: OpenAPIV3.Document = {
       },
       CreateRestaurantInput: {
         type: "object",
-        required: ["name", "city", "category", "address"],
+        required: ["name", "city", "categoryIds", "address"],
         properties: {
           name: { type: "string", minLength: 1, maxLength: 150, example: "Ceylon Spice House" },
           city: { $ref: "#/components/schemas/City" },
-          category: { type: "string", minLength: 1, maxLength: 50, example: "Sri Lankan" },
+          categoryIds: { type: "array", items: { type: "integer" }, minItems: 1 },
           address: { type: "string", minLength: 1, maxLength: 255, example: "12 Galle Road, Colombo 03" },
           imageUrl: { type: "string", format: "uri", maxLength: 255 },
         },
       },
       UpdateRestaurantInput: {
         type: "object",
-        description: "At least one field must be given",
+        description: "At least one field must be given. categoryIds, when given, replaces the full set.",
         minProperties: 1,
         properties: {
           name: { type: "string", minLength: 1, maxLength: 150 },
           city: { $ref: "#/components/schemas/City" },
-          category: { type: "string", minLength: 1, maxLength: 50 },
+          categoryIds: { type: "array", items: { type: "integer" }, minItems: 1 },
           address: { type: "string", minLength: 1, maxLength: 255 },
           imageUrl: { type: "string", format: "uri", maxLength: 255 },
         },
@@ -555,6 +577,82 @@ export const openApiSpec: OpenAPIV3.Document = {
         },
       },
     },
+    "/categories": {
+      get: {
+        tags: ["Categories"],
+        summary: "List all categories, alphabetical",
+        responses: {
+          "200": {
+            description: "Every category",
+            content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Category" } } } },
+          },
+        },
+      },
+    },
+    "/admin/categories": {
+      post: {
+        tags: ["Admin"],
+        summary: "Create a category",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/CreateCategoryInput" } } },
+        },
+        responses: {
+          "201": {
+            description: "Created",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Category" } } },
+          },
+          "400": {
+            description: "Validation failed (blank/over-long name)",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "409": errorResponse("A category with this name already exists"),
+        },
+      },
+    },
+    "/admin/categories/{id}": {
+      put: {
+        tags: ["Admin"],
+        summary: "Rename a category",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateCategoryInput" } } },
+        },
+        responses: {
+          "200": {
+            description: "Updated",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Category" } } },
+          },
+          "400": {
+            description: "Validation failed, or malformed id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } },
+          },
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Category not found"),
+          "409": errorResponse("A category with this name already exists"),
+        },
+      },
+      delete: {
+        tags: ["Admin"],
+        summary: "Delete a category",
+        description: "Linked menu items keep their row with categoryId set null; linked restaurants simply lose that tag.",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          "204": { description: "Deleted" },
+          "400": errorResponse("Malformed id"),
+          "401": errorResponse("Not logged in"),
+          "403": errorResponse("Not an Admin"),
+          "404": errorResponse("Category not found"),
+        },
+      },
+    },
     "/restaurants": {
       get: {
         tags: ["Restaurants"],
@@ -592,10 +690,16 @@ export const openApiSpec: OpenAPIV3.Document = {
       get: {
         tags: ["Restaurants"],
         summary: "Search restaurants by category/diet/spice/price/city",
-        description: "diet/spice/price filter on the restaurant's menu items (matches restaurants with at least one qualifying item).",
+        description: "itemCategoryId/diet/spice/price filter on the restaurant's menu items (matches restaurants with at least one qualifying item). categoryId filters on the restaurant's own tags instead.",
         parameters: [
           { name: "city", in: "query", schema: { $ref: "#/components/schemas/City" } },
-          { name: "category", in: "query", schema: { type: "string", maxLength: 50 } },
+          { name: "categoryId", in: "query", description: "Restaurant-level category tag", schema: { type: "integer" } },
+          {
+            name: "itemCategoryId",
+            in: "query",
+            description: "Matches restaurants with at least one menu item in this category",
+            schema: { type: "integer" },
+          },
           { name: "diet", in: "query", schema: { type: "string", enum: ["Vegetarian", "Vegan", "Halal"] } },
           {
             name: "spice",

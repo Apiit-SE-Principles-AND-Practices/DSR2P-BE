@@ -57,14 +57,14 @@ for local setup.
 
 ## Phase 5 — Admin Management (Epic 8)
 24. **[DSR2P-29]** `POST/PUT/DELETE /admin/restaurants` (+ initial menu items on create), CASCADE delete - done
-25. **[DSR2P-30]** `POST/PUT/DELETE /admin/restaurants/:id/menu-items` (price >=0 check)
-26. **[DSR2P-31]** image_url/content fields in update endpoints
+25. **[DSR2P-30]** `POST/PUT/DELETE /admin/restaurants/:id/menu-items` (price >=0 check) done
+26. **[DSR2P-31]** image_url/content fields in update endpoints done
 
-## Phase 6 — Moderation & Dashboard (Epic 9)
-27. **[DSR2P-32]** `GET /admin/moderation/queue`
-28. **[DSR2P-33]** `PATCH /admin/reviews/:id/approve|reject(reason)` + audit that all public reads filter `status='Approved'`
-29. **[DSR2P-34]** `PATCH /admin/comments/:id/approve|reject(reason)`
-30. **[DSR2P-35]** `GET /admin/dashboard/stats`
+## Phase 6 — Moderation & Dashboard (Epic 9) 
+27. **[DSR2P-32]** `GET /admin/moderation/queue` done
+28. **[DSR2P-33]** `PATCH /admin/reviews/:id/approve|reject(reason)` + audit that all public reads filter `status='Approved'`  done 
+29. **[DSR2P-34]** `PATCH /admin/comments/:id/approve|reject(reason)` done
+30. **[DSR2P-35]** `GET /admin/dashboard/stats` done
 
 ## Phase 7 — Cross-cutting NFR work (Epic 10, backend slice)
 31. **[DSR2P-36]** mirror all CHECK constraints as API validation (ratings 1–5, email/password rules)
@@ -74,7 +74,7 @@ for local setup.
 35. **[DSR2P-43]** test runner setup; unit tests (rating/price-band calc, moderation transitions); integration tests (auth, review submit, like, moderation) traceable to BB01–BB20
 
 ## Phase 8 — Legal/Ethical/Societal (Epic 11, backend slice)
-36. **[DSR2P-44]** data-export endpoint + account-deletion endpoint (relies on CASCADE)
+36. **[DSR2P-44]** account-deletion endpoint (relies on CASCADE) done
 37. **[DSR2P-46]** `POST /reviews/:id/report`, `/comments/:id/report` (requireAuth, surfaced to moderation query)
 
 ## Dependency notes

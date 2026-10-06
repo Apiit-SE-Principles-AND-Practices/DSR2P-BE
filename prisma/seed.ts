@@ -3,9 +3,41 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// [DSR2P]-categories — the fixed menu/dish category list.
+const CATEGORY_NAMES = [
+  "Breakfast",
+  "Salads",
+  "Soups",
+  "Rice & Biryani",
+  "Noodles & Pasta",
+  "Pizza",
+  "Burgers & Sandwiches",
+  "Chicken",
+  "Meat & Beef",
+  "Seafood",
+  "Vegetarian",
+  "Sri Lankan / Local Specials",
+  "Curries",
+  "Appetizers & Starters",
+  "Snacks & Sides",
+  "Desserts",
+  "Soft Drinks & Beverages",
+  "Tea & Coffee",
+  "Mocktails & Juices",
+  "Kids' Menu",
+];
+
 // [DSR2P]-1-BE5 — seed roles, sample restaurants, menu items and one Admin/Customer account.
 // Safe to re-run: every insert is an upsert or guarded by an existence check.
 async function main() {
+  for (const name of CATEGORY_NAMES) {
+    await prisma.category.upsert({ where: { name }, update: {}, create: { name } });
+  }
+  const riceAndBiryani = await prisma.category.findUniqueOrThrow({ where: { name: "Rice & Biryani" } });
+  const localSpecials = await prisma.category.findUniqueOrThrow({
+    where: { name: "Sri Lankan / Local Specials" },
+  });
+
   await prisma.role.upsert({
     where: { name: "Customer" },
     update: {},
@@ -55,8 +87,8 @@ async function main() {
       data: {
         name: "Ceylon Spice House",
         city: "Colombo",
-        category: "Sri Lankan",
         address: "12 Galle Road, Colombo 03",
+        categories: { create: [{ categoryId: localSpecials.id }, { categoryId: riceAndBiryani.id }] },
         menuItems: {
           create: [
             {
@@ -66,9 +98,11 @@ async function main() {
               isVegan: false,
               isHalal: true,
               spiceLevel: "Medium",
+              categoryId: localSpecials.id,
             },
             {
               name: "Vegetable Rice & Curry",
+              categoryId: riceAndBiryani.id,
               priceLkr: 900,
               isVegetarian: true,
               isVegan: true,

@@ -26,11 +26,12 @@ const restaurant = {
   id,
   name: "Ceylon Spice House",
   city: "Colombo",
-  category: "Sri Lankan",
   address: "12 Galle Road, Colombo 03",
   imageUrl: null,
   createdAt: new Date(),
+  categories: [] as { category: { id: number; name: string } }[],
 };
+const withCategories = { categories: { include: { category: true } } };
 const notFoundError = new Prisma.PrismaClientKnownRequestError("Record not found", {
   code: "P2025",
   clientVersion: Prisma.prismaVersion.client,
@@ -65,6 +66,7 @@ describe("restaurants", () => {
         orderBy: { createdAt: "desc" },
         skip: 0,
         take: 20,
+        include: withCategories,
       });
       expect(prismaMock.restaurant.count).toHaveBeenCalledWith({ where: undefined });
     });
@@ -154,13 +156,13 @@ describe("restaurants", () => {
       expect(res.body.data[0]).toMatchObject({ averageRating: null, priceBand: null });
     });
 
-    it("filters by city and category", async () => {
+    it("filters by city and categoryId", async () => {
       prismaMock.restaurant.findMany.mockResolvedValue([]);
 
-      await request(app).get("/restaurants/search?city=Kandy&category=Sri Lankan");
+      await request(app).get("/restaurants/search?city=Kandy&categoryId=1");
 
       expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { city: "Kandy", category: "Sri Lankan" } })
+        expect.objectContaining({ where: { city: "Kandy", categories: { some: { categoryId: 1 } } } })
       );
     });
 
@@ -177,6 +179,16 @@ describe("restaurants", () => {
             },
           },
         })
+      );
+    });
+
+    it("filters by itemCategoryId via the same menu item sub-filter", async () => {
+      prismaMock.restaurant.findMany.mockResolvedValue([]);
+
+      await request(app).get("/restaurants/search?itemCategoryId=2");
+
+      expect(prismaMock.restaurant.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { menuItems: { some: { categoryId: 2 } } } })
       );
     });
 
@@ -416,7 +428,7 @@ describe("restaurants", () => {
     const body = {
       name: "Ceylon Spice House",
       city: "Colombo",
-      category: "Sri Lankan",
+      categoryIds: [1],
       address: "12 Galle Road, Colombo 03",
     };
 
@@ -447,7 +459,15 @@ describe("restaurants", () => {
 
       expect(res.status).toBe(201);
       expect(res.body.id).toBe(id);
-      expect(prismaMock.restaurant.create).toHaveBeenCalledWith({ data: body });
+      expect(prismaMock.restaurant.create).toHaveBeenCalledWith({
+        data: {
+          name: body.name,
+          city: body.city,
+          address: body.address,
+          categories: { create: [{ categoryId: 1 }] },
+        },
+        include: withCategories,
+      });
     });
 
     it("returns 400 and saves nothing for a missing field", async () => {
@@ -484,6 +504,7 @@ describe("restaurants", () => {
       expect(prismaMock.restaurant.update).toHaveBeenCalledWith({
         where: { id },
         data: { name: "New Name" },
+        include: withCategories,
       });
     });
 
