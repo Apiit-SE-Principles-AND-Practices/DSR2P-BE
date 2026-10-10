@@ -160,11 +160,19 @@ restaurantsRouter.get(
 export const adminRestaurantsRouter = Router();
 adminRestaurantsRouter.use(requireAdmin);
 
-// [DSR2P]-29-BE1 — POST /admin/restaurants
+// Multipart sends a single categoryIds value as a string, not a one-item array.
+function normalizeRestaurantBody(body: Record<string, unknown>) {
+  const { categoryIds } = body;
+  return categoryIds === undefined || Array.isArray(categoryIds) ? body : { ...body, categoryIds: [categoryIds] };
+}
+
+// [DSR2P]-29-BE1 — POST /admin/restaurants (JSON, or multipart: fields + optional "image" file)
 adminRestaurantsRouter.post(
   "/",
+  uploadImageMiddleware,
   asyncHandler(async (req, res) => {
-    const { categoryIds, ...input } = createRestaurantSchema.parse(req.body);
+    const { categoryIds, ...input } = createRestaurantSchema.parse(normalizeRestaurantBody(req.body));
+    if (req.file) input.imageUrl = await uploadImage(req.file.buffer);
     const restaurant = await prisma.restaurant.create({
       data: { ...input, categories: { create: categoryIds.map((categoryId) => ({ categoryId })) } },
       include: withCategories,
@@ -176,9 +184,12 @@ adminRestaurantsRouter.post(
 // PUT /admin/restaurants/:id — categoryIds, when given, replaces the full set.
 adminRestaurantsRouter.put(
   "/:id",
+  uploadImageMiddleware,
   asyncHandler(async (req, res) => {
     const { id } = idParamSchema.parse(req.params);
-    const { categoryIds, ...input } = updateRestaurantSchema.parse(req.body);
+    const body: Record<string, unknown> = { ...normalizeRestaurantBody(req.body) };
+    if (req.file) body.imageUrl = await uploadImage(req.file.buffer);
+    const { categoryIds, ...input } = updateRestaurantSchema.parse(body);
     const restaurant = await prisma.restaurant.update({
       where: { id },
       data: {
